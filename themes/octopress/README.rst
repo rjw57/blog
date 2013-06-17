@@ -42,6 +42,27 @@ You can enable it by using these settings:
 - ``GITHUB_SKIP_FORK``: False
 - ``GITHUB_SHOW_USER_LINK``: False
 
+This theme also allows sharing via Twitter, Google Plus, and Facebook.  To
+enable any of these, use the following settings:
+
+- ``TWITTER_USER``: ['username'|'']
+- ``GOOGLE_PLUS_USER``: ['username'|'']
+- ``FACEBOOK_LIKE``: [True|False]
+
+Extra twitter options: default values are shown
+
+- ``TWITTER_TWEET_BUTTON``: ``False`` show twitter tweet button
+- ``TWITTER_FOLLOW_BUTTON``: ``False`` show twitter follow button
+- ``TWITTER_LATEST_TWEETS``: ``False`` list latest tweets
+- ``TWITTER_TWEET_COUNT``: ``3`` number of latest tweets to show
+- ``TWITTER_SHOW_REPLIES``: ``'false'`` whether to list replies among latest tweets
+- ``TWITTER_SHOW_FOLLOWER_COUNT``: ``'true'`` show number of followers
+
+Extra google plus options: default values are shown
+
+- ``GOOGLE_PLUS_ONE``: ``False`` show +1 button
+- ``GOOGLE_PLUS_HIDDEN``: ``False`` hide the google plus sidebar link.
+
 Contribute
 ----------
 
@@ -55,6 +76,7 @@ Authors
 - `Maurizio Sambati`_: Initial porting of the theme.
 - `Geoffrey Lehée`_: GitHub plugin, some cleaning and some missing standard Pelican features (social plugins and links).
 - `Ekin Ertaç`_: Open links in other window, add tags and categories.
+- `Jake Vanderplas`_: Work on Twitter, Google plus, Facebook, and Disqus plugins.
 
 .. _`Pelican`: http://getpelican.com
 .. _`Octopress`: http://octopress.org
@@ -63,3 +85,4 @@ Authors
 .. _`Maurizio Sambati`: https://github.com/duilio
 .. _`Geoffrey Lehée`: https://github.com/socketubs
 .. _`Ekin Ertaç`: https://github.com/ekinertac
+.. _`Jake Vanderplas`: https://github.com/jakevdp
