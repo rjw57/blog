@@ -1,6 +1,6 @@
 Title: Extracting the GPS traces from Horizon's Secret Life of the Cat
 Date: 14-06-2013
-Tags: gis, python, hacking, Friday project, web, Data munging
+Tags: GIS, Python, hacking, Friday project, web, data munging
 
 <p><iframe width="100%" height="350" frameborder="0" scrolling="no" marginheight="0" marginwidth="0" src="https://www.google.co.uk/maps/ms?ie=UTF8&amp;hl=en&amp;oe=UTF8&amp;msa=0&amp;msid=205632188049427480820.0004df5bf5bec487c6e14&amp;num=200&amp;ll=51.185315,-0.528953&amp;spn=0.005264,0.01397&amp;t=m&amp;output=embed"></iframe></p>
 
