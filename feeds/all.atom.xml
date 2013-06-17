@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Scattered Thoughts</title><link href="http://rjw57.github.io/blog/" rel="alternate"></link><link href="http://rjw57.github.io/blog/feeds/all.atom.xml" rel="self"></link><id>http://rjw57.github.io/blog/</id><updated>2013-06-14T00:00:00+02:00</updated><entry><title>Extracting the GPS traces from Horizon's Secret Life of the Cat</title><link href="http://rjw57.github.io/blog/extracting-the-gps-traces-from-horizons-secret-life-of-the-cat.html" rel="alternate"></link><updated>2013-06-14T00:00:00+02:00</updated><author><name>Rich Wareham</name></author><id>tag:rjw57.github.io/blog,2013-06-14:extracting-the-gps-traces-from-horizons-secret-life-of-the-cat.html</id><summary type="html">&lt;p&gt;&lt;iframe width="100%" height="350" frameborder="0" scrolling="no" marginheight="0" marginwidth="0" src="https://www.google.co.uk/maps/ms?ie=UTF8&amp;amp;hl=en&amp;amp;oe=UTF8&amp;amp;msa=0&amp;amp;msid=205632188049427480820.0004df5bf5bec487c6e14&amp;amp;num=200&amp;amp;ll=51.185315,-0.528953&amp;amp;spn=0.005264,0.01397&amp;amp;t=m&amp;amp;output=embed"&gt;&lt;/iframe&gt;&lt;/p&gt;
+
+&lt;p&gt;The BBC's Horizon programme recently had a special entitled &lt;a href="http://www.bbc.co.uk/programmes/b02xcvhw"&gt;The Secret Life of the Cat&lt;/a&gt; which had an associated
+&lt;a href="http://www.bbc.co.uk/news/science-environment-22567526"&gt;interactive map&lt;/a&gt; on
+the BBC website. A colleague at work expressed interest in getting the GPS
+trace data. The result is &lt;a href="https://github.com/rjw57/secret-life-of-the-cat"&gt;a GitHub repository&lt;/a&gt; with some files in.&lt;/p&gt;
+&lt;p&gt;Unfortunately the &lt;a href="http://www.rvc.ac.uk/SML/People/awilson/BBC-Horizon-the-secret-life-of-the-cat.cfm"&gt;research project&lt;/a&gt;
+at the Royal Vetinary College does not make the GPS traces available on it's
+website. This repository contains my efforts to re-engineer the GPS traces from
+the BBC's interactive map. The results can be seen in the &lt;code&gt;geojson/&lt;/code&gt; and &lt;code&gt;kml/&lt;/code&gt;
+directories. GitHub now has a direct visualisation feature which means that the
+GeoJSON files can be viewed inline on a map.&lt;/p&gt;
+&lt;p&gt;In addition, I've uploaded the KML files generated to &lt;a href="https://www.google.co.uk/maps/ms?msid=205632188049427480820.0004df5bf5bec487c6e14&amp;amp;msa=0"&gt;a custom Google map&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;If you want to read the Python code that did the re-projection, the
+&lt;a href="http://nbviewer.ipython.org/urls/raw.github.com/rjw57/secret-life-of-the-cat/master/reprojection.ipynb"&gt;web-notebook&lt;/a&gt;
+can be viewed online.&lt;/p&gt;
+&lt;h2&gt;Scraping the website&lt;/h2&gt;
+&lt;p&gt;The excellent Developer Console for Google Chrome revealed that the bulk of the
+mapping work on the site was being done in
+&lt;a href="http://news.bbcimg.co.uk/news/special/2013/newsspec_5380/js/compiled/desktop/ns_all.js"&gt;one JavaScript file&lt;/a&gt;.
+After beautifying this file and poking around for some data, we can find some
+JavaScript which creates an object which is in &lt;code&gt;raw-website-data.json&lt;/code&gt; in this
+repository.&lt;/p&gt;
+&lt;p&gt;This JSON object contains a single array of cat records which itself contains
+the traces along with timestamps. Success! Well, not quite. The trace positions
+appear to be in pixel co-ordinates on the detail maps. Fail. Well, not quite.
+The detail maps themselves are fairly easily exctracted, see the &lt;code&gt;imagery/&lt;/code&gt;
+directory. Using my own &lt;a href="https://github.com/rjw57/foldbeam"&gt;foldbeam&lt;/a&gt; program,
+I downloaded a GeoTIFF of the Sharnley Green area using the following command:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span class="gp"&gt;$&lt;/span&gt; foldbeam-render -p 27700 -l 501000 -r 505000 -b 142000 -t 146000 -w 4000 -o imagery/road.tiff
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;This file is available in the &lt;code&gt;imagery/&lt;/code&gt; directory in this repository. It is
+the Sarnley Green area. The GeoTIFF is rendered by Foldbeam using OpenStreetMap
+tiles but re-projected into the British Ordinance Survey Grid. Using the GIMP,
+I then manually aligned the maps as shown in &lt;code&gt;imagery.road.xcf&lt;/code&gt;. Ah, but the
+individual map images are of the wrong scale. Luckily if you look at the raw
+website data you see that the number of pixels per metre for each map is
+recorded. This can be used, as shown in the &lt;code&gt;reprojection.ipynb&lt;/code&gt; IPython web
+notebook, to calculate the appropriate scaling for each layer.&lt;/p&gt;
+&lt;p&gt;After manual alignment, the location of the maps in the road GeoTIFF is
+recorded. Some simple manipulation outlined in &lt;code&gt;reprojection.ipynb&lt;/code&gt; can then be
+used to convert pixel locations in the maps to pixel locations in the
+OpenStreetMap road image. Since Foldbeam saves a GeoTIFF, we can use the Python
+&lt;a href="http://gdal.org/"&gt;GDAL&lt;/a&gt; wrapper to load the road image in and get the
+transform from pixel co-ordinates straight into Ordinance Survery grid
+co-ordinates.&lt;/p&gt;
+&lt;p&gt;We're nearly there. GeoJSON files by default use
+&lt;a href="https://en.wikipedia.org/wiki/World_Geodetic_System"&gt;WGS84&lt;/a&gt; latitudes and
+longitudes for storing positions. We again use the Python wrappers to transfrom
+from one projection to the next. At this point it's a simple job to write out a
+little GeoJSON file for each cat.&lt;/p&gt;
+&lt;p&gt;The &lt;a href="http://gdal.org/ogr"&gt;OGR&lt;/a&gt; library comes with a handy little utility that
+can be used to convert the GeoJSON files into KML files which can be loaded
+into Google Earth or onto Google Maps. They're generated by a single command:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span class="gp"&gt;$&lt;/span&gt; &lt;span class="k"&gt;for &lt;/span&gt;i in *.geojson; &lt;span class="k"&gt;do &lt;/span&gt;ogr2ogr -f KML ../kml/&lt;span class="sb"&gt;`&lt;/span&gt;basename &lt;span class="nv"&gt;$i&lt;/span&gt; geojson&lt;span class="sb"&gt;`&lt;/span&gt;kml &lt;span class="nv"&gt;$i&lt;/span&gt;; &lt;span class="k"&gt;done&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;And... we're done.&lt;/p&gt;
+&lt;h2&gt;Issues&lt;/h2&gt;
+&lt;p&gt;Unfortunately, I couldn't work out where Orlando, the cat whose map is an
+insert, is based. If anyone wants to send me a pull-request fixing the map
+location, I'd be more than happy to accept it.&lt;/p&gt;</summary><category term="GIS"></category><category term="Python"></category><category term="hacking"></category><category term="Friday project"></category><category term="web"></category><category term="data munging"></category></entry></feed>
