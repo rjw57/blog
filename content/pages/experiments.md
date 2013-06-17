@@ -31,10 +31,3 @@ and not by the winner of the seat.
 ([Map](http://rjw57.github.io/uk-election-2010))
 ([GitHub](https://github.com/rjw57/uk-election-2010))
 
-### An Old English (Anglo-Saxon) speech synthesiser
-
-An attempt to learn about the [eSpeak](http://espeak.sourceforge.net/) speech
-synthesiser and speech synthesis in general. Require an MP3-supporting browser
-such as Chrome. (Firefox does not support MP3 in the HTML ``audio`` tag.)
-([Demo](http://richwareham.com/oespeak/))
-([GitHub](https://github.com/rjw57/oespeak/))
