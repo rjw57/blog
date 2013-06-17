@@ -25,6 +25,8 @@ LINKS =  (('Pelican', 'http://getpelican.com/'),
 SOCIAL = (('You can add links in your config file', '#'),
           ('Another social link', '#'),)
 
+THEME = 'themes/octopress'
+
 DEFAULT_PAGINATION = False
 
 # Uncomment following line if you want document-relative URLs when developing
