@@ -31,3 +31,18 @@ DEFAULT_PAGINATION = False
 
 # Uncomment following line if you want document-relative URLs when developing
 RELATIVE_URLS = True
+
+# Various links to social media
+GITHUB_USER = 'rjw57'
+GITHUB_SHOW_USER_LINK = True
+GITHUB_SKIP_FORK = True
+GITHUB_REPO_COUNT = 3
+
+TWITTER_USER = 'richwareham'
+TWITTER_TWEET_BUTTON = True
+
+GOOGLE_PLUS_USER = '114005052144439249039'
+
+# Various 'spam your friends' on social media buttons
+GOOGLE_PLUS_ONE = True
+TWITTER_FOLLOW_BUTTON = True
