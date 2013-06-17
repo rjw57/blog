@@ -15,6 +15,9 @@ FEED_ALL_ATOM = None
 CATEGORY_FEED_ATOM = None
 TRANSLATION_FEED_ATOM = None
 
+FEED_DOMAIN = 'http://rjw57.github.io/blog/feeds'
+FEED_ATOM = 'all.atom.xml'
+
 ## Blogroll
 #LINKS =  (('Pelican', 'http://getpelican.com/'),
 #          ('Python.org', 'http://python.org/'),
