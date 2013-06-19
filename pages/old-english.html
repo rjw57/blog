@@ -10,7 +10,6 @@
     <link href="http://rjw57.github.io/blog/feeds/all.atom.xml" type="application/atom+xml" rel="alternate"
         title="Scattered Tech Atom Feed" />
     
-  
   <!-- http://t.co/dKP3o1e -->
   <meta name="HandheldFriendly" content="True">
   <meta name="MobileOptimized" content="320">
@@ -27,6 +26,20 @@
         rel="stylesheet" type="text/css">
   <link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic"
         rel="stylesheet" type="text/css">
+
+  
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+  "HTML-CSS": {
+  styles: {
+  ".MathJax .mo, .MathJax .mi": {color: "black ! important"}}
+  },
+  tex2jax: {inlineMath: [['$','$'], ['\(','\)']],processEscapes: true}
+  });
+</script>
+
+<script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML"></script>
+
 </head><body>
   <header role="banner"><hgroup>
   <h1><a href="http://rjw57.github.io/blog/">Scattered Tech</a></h1>
@@ -79,6 +92,9 @@ such as Chrome. (Firefox does not support MP3 in the HTML <code>audio</code> tag
     <h1>Recent Posts</h1>
     <ul id="recent_posts">
             <li class="post">
+          <a href="http://rjw57.github.io/blog/2013/06/19/real-time-traffic-data/">Processing the UK's real-time traffic data with Python</a>
+      </li>
+            <li class="post">
           <a href="http://rjw57.github.io/blog/2013/06/14/extracting-the-gps-traces-from-horizons-secret-life-of-the-cat/">Extracting the GPS traces from Horizon's Secret Life of the Cat</a>
       </li>
           </ul>
@@ -94,7 +110,7 @@ such as Chrome. (Firefox does not support MP3 in the HTML <code>audio</code> tag
 
   <section>
   <h1>Tags</h1>
-      <a href="http://rjw57.github.io/blog/tag/web.html">web</a>,      <a href="http://rjw57.github.io/blog/tag/friday-project.html">Friday project</a>,      <a href="http://rjw57.github.io/blog/tag/python.html">Python</a>,      <a href="http://rjw57.github.io/blog/tag/data-munging.html">data munging</a>,      <a href="http://rjw57.github.io/blog/tag/gis.html">GIS</a>,      <a href="http://rjw57.github.io/blog/tag/hacking.html">hacking</a>    </section>
+      <a href="http://rjw57.github.io/blog/tag/web.html">web</a>,      <a href="http://rjw57.github.io/blog/tag/datagovuk.html">data.gov.uk</a>,      <a href="http://rjw57.github.io/blog/tag/friday-project.html">Friday project</a>,      <a href="http://rjw57.github.io/blog/tag/python.html">Python</a>,      <a href="http://rjw57.github.io/blog/tag/matplotlib.html">matplotlib</a>,      <a href="http://rjw57.github.io/blog/tag/data-munging.html">data munging</a>,      <a href="http://rjw57.github.io/blog/tag/gis.html">GIS</a>,      <a href="http://rjw57.github.io/blog/tag/hacking.html">hacking</a>    </section>
 
   
                     
@@ -142,7 +158,15 @@ such as Chrome. (Firefox does not support MP3 in the HTML <code>audio</code> tag
   Copyright &copy; 2013 - Rich Wareham -
   <span class="credit">Powered by <a href="http://getpelican.com">Pelican</a></span>
 </p></footer>
-    <script type="text/javascript">
+  	<script type="text/javascript">
+	  var disqus_shortname = 'rjw57-blog';
+	  (function() {
+	    var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+	    dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+	    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+	   })();
+	</script>
+  <script type="text/javascript">
     (function(){
       var twitterWidgets = document.createElement('script');
       twitterWidgets.type = 'text/javascript';
