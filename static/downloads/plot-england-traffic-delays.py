@@ -137,7 +137,7 @@ lc = LineCollection(segment_coords[good_data,...],
 gca().add_collection(lc)
 
 # Add a colour bar
-cb = colorbar(lc, extend='max')
+cb = colorbar(lc, extend='both')
 cb.set_label('Delay / minutes')
 
 # Set plot title and label axes
