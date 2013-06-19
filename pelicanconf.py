@@ -7,7 +7,7 @@ SITENAME = u'Scattered Technologies'
 SITEURL = ''
 SITESUBTITLE = "Rich Wareham's rambles through interesting things"
 
-TIMEZONE = 'Europe/Paris'
+TIMEZONE = 'Europe/London'
 
 DEFAULT_LANG = u'en'
 
