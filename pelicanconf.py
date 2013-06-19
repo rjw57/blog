@@ -15,7 +15,7 @@ ARTICLE_URL = '{date:%Y}/{date:%m}/{date:%d}/{slug}/'
 ARTICLE_SAVE_AS = '{date:%Y}/{date:%m}/{date:%d}/{slug}/index.html'
 
 # Add an explicit 'downloads' static URL location
-STATIC_PATHS = ['images', 'downloads']
+STATIC_PATHS = ['images', 'downloads', 'notebooks']
 
 # Feed generation is usually not desired when developing
 FEED_ALL_ATOM = None
@@ -56,3 +56,18 @@ GOOGLE_PLUS_USER = '114005052144439249039'
 # Various 'spam your friends' on social media buttons
 GOOGLE_PLUS_ONE = True
 TWITTER_FOLLOW_BUTTON = True
+
+# MathJax support
+EXTRA_HEADER = '''
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+  "HTML-CSS": {
+  styles: {
+  ".MathJax .mo, .MathJax .mi": {color: "black ! important"}}
+  },
+  tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']],processEscapes: true}
+  });
+</script>
+
+<script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML"></script>
+'''
