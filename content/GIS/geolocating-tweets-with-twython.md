@@ -6,8 +6,8 @@ status: draft
 
 ![Geographic preferences for mobile devices](|filename|/images/geolocating-twython/preferences.png)
 
-*In this post: creating a Twitter 'app'; drinking from the Twitter firehose; an exotic projection; binning; the secret
-of computer graphics.*
+*In this post: creating a Twitter 'app'; drinking from the Twitter firehose; an exotic projection; binning; blurring; a
+dubious preference metric.*
 
 Twitter recently [retired their "version 1" API] [v1-retirement]. It seems a good point, therefore, to learn both how to
 interact with their new "version 1.1" API and to see what sort of data Twitter lets you get on individual tweets. As
