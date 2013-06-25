@@ -119,7 +119,7 @@ twitter = Twython(CONSUMER_KEY, CONSUMER_SECRET, OAUTH_TOKEN, OAUTH_TOKEN_SECRET
 ```
 
 Congratulations! We're now fully authenticated with Twitter. Let's prove this by dumping a [JSON] representation of the
-latest tweet by the Internet's darling [Stephen Fry] [https://twitter.com/stephenfry]:
+latest tweet by the Internet's darling [Stephen Fry](https://twitter.com/stephenfry):
 
 [JSON]: http://json.org/
 
