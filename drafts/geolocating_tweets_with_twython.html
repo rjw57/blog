@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>        iOS versus Android: plotting tweet location heat maps with Twython
+    </title>
+  <meta name="author" content="Rich Wareham">
+
+    <link href="http://rjw57.github.io/blog/feeds/all.atom.xml" type="application/atom+xml" rel="alternate"
+        title="Scattered Technologies Atom Feed" />
+    
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link href="http://rjw57.github.io/blog/favicon.png" rel="icon">
+  <link href="http://rjw57.github.io/blog/theme/css/main.css" media="screen, projection"
+        rel="stylesheet" type="text/css">
+  <script src="http://rjw57.github.io/blog/theme/js/modernizr-2.0.js"></script>
+  <script src="http://rjw57.github.io/blog/theme/js/ender.js"></script>
+  <script src="http://rjw57.github.io/blog/theme/js/octopress.js" type="text/javascript"></script>
+
+  <link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic"
+        rel="stylesheet" type="text/css">
+  <link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic"
+        rel="stylesheet" type="text/css">
+
+  
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+  "HTML-CSS": {
+  styles: {
+  ".MathJax .mo, .MathJax .mi": {color: "black ! important"}}
+  },
+  tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']],processEscapes: true}
+  });
+</script>
+
+<script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML"></script>
+
+</head><body>
+  <header role="banner"><hgroup>
+  <h1><a href="http://rjw57.github.io/blog/">Scattered Technologies</a></h1>
+      <h2>Rich Wareham's rambles through interesting things</h2>
+  </hgroup></header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="http://rjw57.github.io/blog/feeds/all.atom.xml" rel="subscribe-rss">RSS</a></li>
+  </ul>
+
+<!-- TODO: add search here
+<form action="" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:http://rjw57.github.io/blog" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+-->
+
+<ul class="main-navigation">
+  <li><a href="http://rjw57.github.io/blog/">Blog</a></li>
+              <li><a href="http://rjw57.github.io/blog/pages/contact-me.html">Contact Me</a></li>
+          <li><a href="http://rjw57.github.io/blog/pages/experiments.html">Experiments</a></li>
+          <li><a href="http://rjw57.github.io/blog/pages/old-english.html">Old English</a></li>
+        <!-- TODO: add categories here? -->
+  </ul></nav>
+  <div id="main">
+    <div id="content">
+      <div>
+  <article class="hentry" role="article">
+    <header>
+          <h1 class="entry-title">iOS versus Android: plotting tweet location heat maps with Twython</h1>
+          <p class="meta"><time datetime="2013-06-24T00:00:00" pubdate>Mon 24 June 2013</time></p>
+</header>
+
+  <div class="entry-content"><p><img alt="Geographic preferences for mobile devices" src="http://rjw57.github.io/blog/static/images/geolocating-twython/preferences.png" /></p>
+<p><em>In this post: creating a Twitter 'app'; drinking from the Twitter firehose; an exotic projection; binning; the secret
+of computer graphics.</em></p>
+<p>Twitter recently <a href="https://dev.twitter.com/blog/api-v1-is-retired">retired their "version 1" API</a>. It seems a good point, therefore, to learn both how to
+interact with their new "version 1.1" API and to see what sort of data Twitter lets you get on individual tweets. As
+usual for most of my little 'learn how to do $x$' projects, I'm going to reach for <a href="http://ipython.org/">IPython</a>.</p>
+<p>After a little Googling, I determined that <a href="https://github.com/ryanmcgrath/twython">twython</a> looked to be a good choice for playing with Twitter. Not only is
+it, apparently, still maintained but it also has a plethora of Stack Overflow answers about it should I get stuck.</p>
+<h2>The Twitter API and OAuth2</h2>
+<p>The Twitter <em>Application Programming Interface</em> (API) is a service provided by Twitter which, perhaps unsurprisingly,
+provides an interface which allows you to program your own applications. (I believe the cool kids now refer to
+applications as 'apps'.) Using the Twitter API, in essence, lets your program pretend to Twitter that they are a
+particular Twitter user. Usually this is to allow posting tweets, or reading a user's timeline. Obviously there are some
+questions about security:</p>
+<ol>
+<li>How does Twitter know which app is trying to use the API? And how can it allow or disallow it?</li>
+<li>How does the user know which app is trying to use the API? And how can they allow or disallow it?</li>
+<li>How does the application know when both Twitter and the user have given permission?</li>
+<li>How does the application convince Twitter it's got permission when the app uses the API?</li>
+</ol>
+<p>Twitter decided to answer these questions by mandating that it's API use something called <a href="http://en.wikipedia.org/wiki/OAuth2#OAuth_2.0">OAuth2</a>. This is a little
+dance that your app must perform to convince Twitter of who it is and that the user wants it. The process is fairly
+simple:</p>
+<ol>
+<li>The app and Twitter share a secret. This secret is used to convince Twitter that it's talking to an application it
+knows.</li>
+<li>Twitter sends the app a link to a page dangling off <a href="http://api.twitter.com/">api.twitter.com</a> which the user should be directed to.</li>
+<li>The user is asked by Twitter if they trust the app and, if necessary, to sign in with their username and password.</li>
+<li>Twitter generates a new secret and it is passed back to the app.</li>
+<li>The app uses this secret from now on to a) prove who it is and b) prove the user allowed it.</li>
+</ol>
+<p>Notice that the user's username and password are never typed into the app. This is intended to stop malicious apps
+emailing Twitter usernames and passwords to the Bad Guys. (This is a very slimmed down description of OAuth, by the way,
+I'd read up on it if you're interested in exactly <em>how</em> it works.)</p>
+<h2>Doing the dance in Python</h2>
+<p>So, let's dive staight in and see how that dance is performed using twython. Firstly, you'll need to
+<a href="https://dev.twitter.com/apps">create a new application</a> on Twitter's developers' site. You'll need a Twitter account to do this. When
+you've created the application, you'll be given a page of OAuth settings like this:</p>
+<p><img alt="OAuth settings for a Twitter application" src="http://rjw57.github.io/blog/static/images/geolocating-twython/twitter-api-key.png" /></p>
+<p>I've blanked out the consumer ker and consumer secret here. I created a <code>credentials.py</code> file with the credentials
+pasted in as follows:</p>
+<div class="highlight"><pre><span class="n">CONSUMER_KEY</span> <span class="o">=</span> <span class="s">&#39;supersecretkey&#39;</span>
+<span class="n">CONSUMER_SECRET</span> <span class="o">=</span> <span class="s">&#39;supersecretsecret&#39;</span>
+</pre></div>
+
+
+<p>(Obviously these are not my application's <em>actual</em> credentials!) We can start using the Twitter API by importing twython
+and creating a <code>Twitter</code> object. After we do this, we ask Twitter for some authentication tokens we can use for the
+current connection:</p>
+<div class="highlight"><pre><span class="kn">from</span> <span class="nn">twython</span> <span class="kn">import</span> <span class="n">Twython</span>
+<span class="kn">from</span> <span class="nn">credentials</span> <span class="kn">import</span> <span class="n">CONSUMER_KEY</span><span class="p">,</span> <span class="n">CONSUMER_SECRET</span>
+<span class="n">twitter</span> <span class="o">=</span> <span class="n">Twython</span><span class="p">(</span><span class="n">CONSUMER_KEY</span><span class="p">,</span> <span class="n">CONSUMER_SECRET</span><span class="p">)</span>
+
+<span class="c"># Start dancing...</span>
+<span class="n">auth</span> <span class="o">=</span> <span class="n">twitter</span><span class="o">.</span><span class="n">get_authentication_tokens</span><span class="p">()</span>
+<span class="n">OAUTH_TOKEN</span> <span class="o">=</span> <span class="n">auth</span><span class="p">[</span><span class="s">&#39;oauth_token&#39;</span><span class="p">]</span>
+<span class="n">OAUTH_TOKEN_SECRET</span> <span class="o">=</span> <span class="n">auth</span><span class="p">[</span><span class="s">&#39;oauth_token_secret&#39;</span><span class="p">]</span>
+<span class="n">twitter</span> <span class="o">=</span> <span class="n">Twython</span><span class="p">(</span><span class="n">CONSUMER_KEY</span><span class="p">,</span> <span class="n">CONSUMER_SECRET</span><span class="p">,</span> <span class="n">OAUTH_TOKEN</span><span class="p">,</span> <span class="n">OAUTH_TOKEN_SECRET</span><span class="p">)</span>
+</pre></div>
+
+
+<p>At this point we're at stage 1 of the dance: Twitter knows who we are but not which user we want to act on behalf of.
+The user, also, doesn't know what we're up to. We now need to get our user to visit a particular URL, sign in and
+authenticate our app. Luckily Python has the smarts included to open the user's web-browser at a particular URL:</p>
+<div class="highlight"><pre><span class="kn">import</span> <span class="nn">webbrowser</span>
+<span class="n">webbrowser</span><span class="o">.</span><span class="n">open_new_tab</span><span class="p">(</span><span class="n">auth</span><span class="p">[</span><span class="s">&#39;auth_url&#39;</span><span class="p">])</span>
+</pre></div>
+
+
+<p>If all has gone well, Twitter's authorisation page should pop up.</p>
+<p><img alt="Twitter's authorisation page" src="http://rjw57.github.io/blog/static/images/geolocating-twython/twitter-auth-page.png" /></p>
+<p>You want to use your own application, I presume, and so after clicking 'Authorize [sic] app' we get a PIN:</p>
+<p><img alt="The PIN presented after authorisation" src="http://rjw57.github.io/blog/static/images/geolocating-twython/twitter-pin.png" /></p>
+<p>This PIN is the secret needed to get to the final stage of the dance: convincing Twitter that we are who we say we are,
+the user is aware of us and that they've allowed us to do the things we're going to do.</p>
+<div class="highlight"><pre><span class="n">PIN</span> <span class="o">=</span> <span class="s">&#39;0123456&#39;</span>
+<span class="n">final_step</span> <span class="o">=</span> <span class="n">twitter</span><span class="o">.</span><span class="n">get_authorized_tokens</span><span class="p">(</span><span class="n">PIN</span><span class="p">)</span>
+</pre></div>
+
+
+<p>The <code>final_step</code> variable is a dictionary which holds the authentication tokens we should use from now on:</p>
+<div class="highlight"><pre><span class="n">OAUTH_TOKEN</span> <span class="o">=</span> <span class="n">final_step</span><span class="p">[</span><span class="s">&#39;oauth_token&#39;</span><span class="p">]</span>
+<span class="n">OAUTH_TOKEN_SECRET</span> <span class="o">=</span> <span class="n">final_step</span><span class="p">[</span><span class="s">&#39;oauth_token_secret&#39;</span><span class="p">]</span>
+<span class="n">twitter</span> <span class="o">=</span> <span class="n">Twython</span><span class="p">(</span><span class="n">CONSUMER_KEY</span><span class="p">,</span> <span class="n">CONSUMER_SECRET</span><span class="p">,</span> <span class="n">OAUTH_TOKEN</span><span class="p">,</span> <span class="n">OAUTH_TOKEN_SECRET</span><span class="p">)</span>
+</pre></div>
+
+
+<p>Congratulations! We're now fully authenticated with Twitter. Let's prove this by dumping a <a href="http://json.org/">JSON</a> representation of the
+latest tweet by the Internet's darling [Stephen Fry] [https://twitter.com/stephenfry]:</p>
+<div class="highlight"><pre><span class="kn">import</span> <span class="nn">json</span>
+<span class="k">print</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">twitter</span><span class="o">.</span><span class="n">get_user_timeline</span><span class="p">(</span><span class="n">screen_name</span><span class="o">=</span><span class="s">&#39;stephenfry&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">],</span> <span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">))</span>
+</pre></div>
+
+
+<p>which, at the time of writing, resulted in this:</p>
+<div class="highlight"><pre><span class="p">{</span>
+  <span class="nt">&quot;contributors&quot;</span><span class="p">:</span> <span class="kc">null</span><span class="p">,</span> 
+  <span class="nt">&quot;truncated&quot;</span><span class="p">:</span> <span class="kc">false</span><span class="p">,</span> 
+  <span class="nt">&quot;text&quot;</span><span class="p">:</span> <span class="s2">&quot;@russellcrowe Perfect choice. Great cricketer &amp;amp; cricketing brain. Is going to make the series all the better. Brilliant Jor-El by the way&quot;</span><span class="p">,</span> 
+  <span class="nt">&quot;in_reply_to_status_id&quot;</span><span class="p">:</span> <span class="mi">349302248628682752</span><span class="p">,</span> 
+  <span class="nt">&quot;id&quot;</span><span class="p">:</span> <span class="mi">349304966269239299</span><span class="p">,</span> 
+  <span class="nt">&quot;favorite_count&quot;</span><span class="p">:</span> <span class="mi">39</span><span class="p">,</span> 
+  <span class="nt">&quot;source&quot;</span><span class="p">:</span> <span class="s2">&quot;&lt;a href=\&quot;http://twitterrific.com\&quot; rel=\&quot;nofollow\&quot;&gt;Twitterrific for Mac&lt;/a&gt;&quot;</span><span class="p">,</span> 
+  <span class="nt">&quot;retweeted&quot;</span><span class="p">:</span> <span class="kc">false</span><span class="p">,</span> 
+  <span class="nt">&quot;coordinates&quot;</span><span class="p">:</span> <span class="kc">null</span><span class="p">,</span> 
+  <span class="nt">&quot;entities&quot;</span><span class="p">:</span> <span class="p">{</span>
+    <span class="nt">&quot;symbols&quot;</span><span class="p">:</span> <span class="p">[],</span> 
+    <span class="nt">&quot;user_mentions&quot;</span><span class="p">:</span> <span class="p">[</span>
+      <span class="p">{</span>
+        <span class="nt">&quot;id&quot;</span><span class="p">:</span> <span class="mi">133093395</span><span class="p">,</span> 
+        <span class="nt">&quot;indices&quot;</span><span class="p">:</span> <span class="p">[</span>
+          <span class="mi">0</span><span class="p">,</span> 
+          <span class="mi">13</span>
+        <span class="p">],</span> 
+        <span class="nt">&quot;id_str&quot;</span><span class="p">:</span> <span class="s2">&quot;133093395&quot;</span><span class="p">,</span> 
+        <span class="nt">&quot;screen_name&quot;</span><span class="p">:</span> <span class="s2">&quot;russellcrowe&quot;</span><span class="p">,</span> 
+        <span class="nt">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;Russell Crowe&quot;</span>
+      <span class="p">}</span>
+    <span class="p">],</span> 
+    <span class="nt">&quot;hashtags&quot;</span><span class="p">:</span> <span class="p">[],</span> 
+    <span class="nt">&quot;urls&quot;</span><span class="p">:</span> <span class="p">[]</span>
+  <span class="p">},</span> 
+  <span class="nt">&quot;in_reply_to_screen_name&quot;</span><span class="p">:</span> <span class="s2">&quot;russellcrowe&quot;</span><span class="p">,</span> 
+  <span class="nt">&quot;id_str&quot;</span><span class="p">:</span> <span class="s2">&quot;349304966269239299&quot;</span><span class="p">,</span> 
+  <span class="nt">&quot;retweet_count&quot;</span><span class="p">:</span> <span class="mi">23</span><span class="p">,</span> 
+  <span class="nt">&quot;in_reply_to_user_id&quot;</span><span class="p">:</span> <span class="mi">133093395</span><span class="p">,</span> 
+  <span class="nt">&quot;favorited&quot;</span><span class="p">:</span> <span class="kc">false</span><span class="p">,</span> 
+  <span class="nt">&quot;user&quot;</span><span class="p">:</span> <span class="p">{</span>
+    <span class="nt">&quot;follow_request_sent&quot;</span><span class="p">:</span> <span class="kc">false</span><span class="p">,</span> 
+    <span class="nt">&quot;profile_use_background_image&quot;</span><span class="p">:</span> <span class="kc">false</span><span class="p">,</span> 
+    <span class="nt">&quot;default_profile_image&quot;</span><span class="p">:</span> <span class="kc">false</span><span class="p">,</span> 
+    <span class="nt">&quot;id&quot;</span><span class="p">:</span> <span class="mi">15439395</span><span class="p">,</span> 
+    <span class="nt">&quot;verified&quot;</span><span class="p">:</span> <span class="kc">true</span><span class="p">,</span> 
+    <span class="nt">&quot;profile_text_color&quot;</span><span class="p">:</span> <span class="s2">&quot;333333&quot;</span><span class="p">,</span> 
+    <span class="nt">&quot;profile_image_url_https&quot;</span><span class="p">:</span> <span class="s2">&quot;https://si0.twimg.com/profile_images/344513261579148157/ba4807791ef9cce28dc0d4aa2ce9372c_normal.jpeg&quot;</span><span class="p">,</span> 
+    <span class="nt">&quot;profile_sidebar_fill_color&quot;</span><span class="p">:</span> <span class="s2">&quot;48CCF4&quot;</span><span class="p">,</span> 
+    <span class="nt">&quot;entities&quot;</span><span class="p">:</span> <span class="p">{</span>
+      <span class="nt">&quot;url&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="nt">&quot;urls&quot;</span><span class="p">:</span> <span class="p">[</span>
+          <span class="p">{</span>
+            <span class="nt">&quot;url&quot;</span><span class="p">:</span> <span class="s2">&quot;http://t.co/4Kht71pdlB&quot;</span><span class="p">,</span> 
+            <span class="nt">&quot;indices&quot;</span><span class="p">:</span> <span class="p">[</span>
+              <span class="mi">0</span><span class="p">,</span> 
+              <span class="mi">22</span>
+            <span class="p">],</span> 
+            <span class="nt">&quot;expanded_url&quot;</span><span class="p">:</span> <span class="s2">&quot;http://www.stephenfry.com/&quot;</span><span class="p">,</span> 
+            <span class="nt">&quot;display_url&quot;</span><span class="p">:</span> <span class="s2">&quot;stephenfry.com&quot;</span>
+          <span class="p">}</span>
+        <span class="p">]</span>
+      <span class="p">},</span> 
+      <span class="nt">&quot;description&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="nt">&quot;urls&quot;</span><span class="p">:</span> <span class="p">[]</span>
+      <span class="p">}</span>
+    <span class="p">},</span> 
+    <span class="nt">&quot;followers_count&quot;</span><span class="p">:</span> <span class="mi">5902987</span><span class="p">,</span> 
+    <span class="nt">&quot;profile_sidebar_border_color&quot;</span><span class="p">:</span> <span class="s2">&quot;FFFFFF&quot;</span><span class="p">,</span> 
+    <span class="nt">&quot;id_str&quot;</span><span class="p">:</span> <span class="s2">&quot;15439395&quot;</span><span class="p">,</span> 
+    <span class="nt">&quot;profile_background_color&quot;</span><span class="p">:</span> <span class="s2">&quot;A5E6FA&quot;</span><span class="p">,</span> 
+    <span class="nt">&quot;listed_count&quot;</span><span class="p">:</span> <span class="mi">55634</span><span class="p">,</span> 
+    <span class="nt">&quot;profile_background_image_url_https&quot;</span><span class="p">:</span> <span class="s2">&quot;https://si0.twimg.com/profile_background_images/797461062/0ec127e26ce9be73cdafb2afca999cd6.jpeg&quot;</span><span class="p">,</span> 
+    <span class="nt">&quot;utc_offset&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> 
+    <span class="nt">&quot;statuses_count&quot;</span><span class="p">:</span> <span class="mi">16302</span><span class="p">,</span> 
+    <span class="nt">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;British Actor, Writer, Lord of Dance, Prince of Swimwear &amp; Blogger. NEVER reads Direct Messages: Instagram - stephenfryactually&quot;</span><span class="p">,</span> 
+    <span class="nt">&quot;friends_count&quot;</span><span class="p">:</span> <span class="mi">51546</span><span class="p">,</span> 
+    <span class="nt">&quot;location&quot;</span><span class="p">:</span> <span class="s2">&quot;London&quot;</span><span class="p">,</span> 
+    <span class="nt">&quot;profile_link_color&quot;</span><span class="p">:</span> <span class="s2">&quot;1C83A6&quot;</span><span class="p">,</span> 
+    <span class="nt">&quot;profile_image_url&quot;</span><span class="p">:</span> <span class="s2">&quot;http://a0.twimg.com/profile_images/344513261579148157/ba4807791ef9cce28dc0d4aa2ce9372c_normal.jpeg&quot;</span><span class="p">,</span> 
+    <span class="nt">&quot;following&quot;</span><span class="p">:</span> <span class="kc">null</span><span class="p">,</span> 
+    <span class="nt">&quot;geo_enabled&quot;</span><span class="p">:</span> <span class="kc">true</span><span class="p">,</span> 
+    <span class="nt">&quot;profile_banner_url&quot;</span><span class="p">:</span> <span class="s2">&quot;https://pbs.twimg.com/profile_banners/15439395/1360662717&quot;</span><span class="p">,</span> 
+    <span class="nt">&quot;profile_background_image_url&quot;</span><span class="p">:</span> <span class="s2">&quot;http://a0.twimg.com/profile_background_images/797461062/0ec127e26ce9be73cdafb2afca999cd6.jpeg&quot;</span><span class="p">,</span> 
+    <span class="nt">&quot;screen_name&quot;</span><span class="p">:</span> <span class="s2">&quot;stephenfry&quot;</span><span class="p">,</span> 
+    <span class="nt">&quot;lang&quot;</span><span class="p">:</span> <span class="s2">&quot;en&quot;</span><span class="p">,</span> 
+    <span class="nt">&quot;profile_background_tile&quot;</span><span class="p">:</span> <span class="kc">false</span><span class="p">,</span> 
+    <span class="nt">&quot;favourites_count&quot;</span><span class="p">:</span> <span class="mi">78</span><span class="p">,</span> 
+    <span class="nt">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;Stephen Fry&quot;</span><span class="p">,</span> 
+    <span class="nt">&quot;notifications&quot;</span><span class="p">:</span> <span class="kc">null</span><span class="p">,</span> 
+    <span class="nt">&quot;url&quot;</span><span class="p">:</span> <span class="s2">&quot;http://t.co/4Kht71pdlB&quot;</span><span class="p">,</span> 
+    <span class="nt">&quot;created_at&quot;</span><span class="p">:</span> <span class="s2">&quot;Tue Jul 15 11:45:30 +0000 2008&quot;</span><span class="p">,</span> 
+    <span class="nt">&quot;contributors_enabled&quot;</span><span class="p">:</span> <span class="kc">false</span><span class="p">,</span> 
+    <span class="nt">&quot;time_zone&quot;</span><span class="p">:</span> <span class="s2">&quot;London&quot;</span><span class="p">,</span> 
+    <span class="nt">&quot;protected&quot;</span><span class="p">:</span> <span class="kc">false</span><span class="p">,</span> 
+    <span class="nt">&quot;default_profile&quot;</span><span class="p">:</span> <span class="kc">false</span><span class="p">,</span> 
+    <span class="nt">&quot;is_translator&quot;</span><span class="p">:</span> <span class="kc">false</span>
+  <span class="p">},</span> 
+  <span class="nt">&quot;geo&quot;</span><span class="p">:</span> <span class="kc">null</span><span class="p">,</span> 
+  <span class="nt">&quot;in_reply_to_user_id_str&quot;</span><span class="p">:</span> <span class="s2">&quot;133093395&quot;</span><span class="p">,</span> 
+  <span class="nt">&quot;lang&quot;</span><span class="p">:</span> <span class="s2">&quot;en&quot;</span><span class="p">,</span> 
+  <span class="nt">&quot;created_at&quot;</span><span class="p">:</span> <span class="s2">&quot;Mon Jun 24 23:16:08 +0000 2013&quot;</span><span class="p">,</span> 
+  <span class="nt">&quot;in_reply_to_status_id_str&quot;</span><span class="p">:</span> <span class="s2">&quot;349302248628682752&quot;</span><span class="p">,</span> 
+  <span class="nt">&quot;place&quot;</span><span class="p">:</span> <span class="kc">null</span>
+<span class="p">}</span>
+</pre></div>
+
+
+<p>As you can see, there are far more than 140 characters in a tweet nowadays(!)</p>
+<h2>Drinking from the hose</h2>
+<p>Nestled in that JSON response was a <code>geo</code> field. If a tweet has a location associated with it then this will be a
+dictionary with a <code>coordinates</code> field which, in turn, contains a tuple givint the latitude and longitude of the tweet.
+(Although it's not obvious, it is likely that this is measured relative to the WGS84 datum.) In addition the tweet has a
+<code>source</code> field which is set by the application posting the Tweet. We'll use the heuristic that if this contains the word
+"Android" then the device posting is an Android device and if it contains "iOS", "iPhone" or "iPad", it's an iOS device.</p>
+<p>Twitter has a streaming API which let's us be notified when a Tweet is made that matches some search criteria. This is
+exposed in twython via the <code>TwythonStreamer</code> class. Using the class is pretty straight-forward: override an <code>on_success</code>
+method to receive each tweet and an <code>on_error</code> method to handle errors. In this case we can make a simple little object
+which will record the co-ordinates of each tweet in two lists depending on the device:</p>
+<div class="highlight"><pre><span class="kn">from</span> <span class="nn">twython</span> <span class="kn">import</span> <span class="n">TwythonStreamer</span>
+
+<span class="k">class</span> <span class="nc">SourceStreamer</span><span class="p">(</span><span class="n">TwythonStreamer</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">SourceStreamer</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">coords</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s">&#39;android&#39;</span><span class="p">:</span> <span class="p">[],</span> <span class="s">&#39;iOS&#39;</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">on_success</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;If tweet has geo-information, add it to the list.&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">source</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s">&#39;source&#39;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="s">&#39;Android&#39;</span> <span class="ow">in</span> <span class="n">source</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">coords</span><span class="p">[</span><span class="s">&#39;android&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s">&#39;geo&#39;</span><span class="p">][</span><span class="s">&#39;coordinates&#39;</span><span class="p">])</span>
+            <span class="k">elif</span> <span class="s">&#39;iOS&#39;</span> <span class="ow">in</span> <span class="n">source</span> <span class="ow">or</span> <span class="s">&#39;iPhone&#39;</span> <span class="ow">in</span> <span class="n">source</span> <span class="ow">or</span> <span class="s">&#39;iPad&#39;</span> <span class="ow">in</span> <span class="n">source</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">coords</span><span class="p">[</span><span class="s">&#39;iOS&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s">&#39;geo&#39;</span><span class="p">][</span><span class="s">&#39;coordinates&#39;</span><span class="p">])</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">AttributeError</span><span class="p">,</span> <span class="ne">KeyError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">):</span>
+            <span class="k">pass</span>
+
+    <span class="k">def</span> <span class="nf">on_error</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">status_code</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;On error, print the error code and disconnect ourselves.&quot;&quot;&quot;</span>
+        <span class="k">print</span><span class="p">(</span><span class="s">&#39;Error: {0}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">status_code</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">disconnect</span><span class="p">()</span>
+</pre></div>
+
+
+<p>Using this object is fairly simple with one little wrinkle: twython blocks a stream when running until the <code>disconnect</code>
+method is called on it. We therefore start the stream running in its own thread:</p>
+<div class="highlight"><pre><span class="kn">from</span> <span class="nn">threading</span> <span class="kn">import</span> <span class="n">Thread</span>
+
+<span class="k">class</span> <span class="nc">StreamThread</span><span class="p">(</span><span class="n">Thread</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stream</span> <span class="o">=</span> <span class="n">SourceStreamer</span><span class="p">(</span>
+            <span class="n">CONSUMER_KEY</span><span class="p">,</span> <span class="n">CONSUMER_SECRET</span><span class="p">,</span> <span class="n">OAUTH_TOKEN</span><span class="p">,</span> <span class="n">OAUTH_TOKEN_SECRET</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stream</span><span class="o">.</span><span class="n">statuses</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">locations</span><span class="o">=</span><span class="s">&#39;-180,-90,180,90&#39;</span><span class="p">)</span>
+
+<span class="n">t</span> <span class="o">=</span> <span class="n">StreamThread</span><span class="p">()</span>
+<span class="n">t</span><span class="o">.</span><span class="n">daemon</span> <span class="o">=</span> <span class="bp">True</span>
+<span class="n">t</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+</pre></div>
+
+
+<p>If we ever want to stop this thread, we can so so by calling <code>t.stream.disconnect()</code>.</p>
+<h2>Plotting a heat map</h2>
+<p>I've already covered some of the issues involved with loading map images in <a href="http://rjw57.github.io/blog/2013/06/19/real-time-traffic-data/">another article</a> and so I
+won't repeat myself here. Suffice it to say that I once again used <a href="https://github.com/rjw57/foldbeam">foldbeam</a> to generate a base map. I wanted a
+somewhat exotic projection since I'd be showing the whole world. The <a href="http://en.wikipedia.org/wiki/Gall-Peters">Gall-Peters</a> projection is interesting in that it
+is nearly unique amongst map projections in having an "in popular culture" section on its Wikipedia page.</p>
+<p>To cut a long story short, this is the magic incantation to foldbeam:</p>
+<div class="highlight"><pre><span class="gp">$</span> foldbeam-render <span class="se">\</span>
+<span class="go">    --proj &#39;+proj=cea +lon_0=0 +lat_ts=45 +x_0=0 +y_0=0 +ellps=WGS84 +units=m +no_defs&#39; \</span>
+<span class="go">    -l -14000000 -r 14000000 -b -8500000 -t 8700000 -w 1280 -o world-map-gall.tiff --aerial</span>
+</pre></div>
+
+
+<p>The long string passed to the <code>--proj</code> option comes from
+<a href="http://spatialreference.org/ref/sr-org/22/">a spatialreference.org entry</a>. Specifically, it's the Proj4 string linked
+to from that page. If you want, you can
+<a href="http://rjw57.github.io/blog/static/downloads/geolocating-twython/world-map-gall.tiff">download the resulting map</a>.</p>
+<p>Before we go any further, we should make sure to import NumPy and matplotlib:</p>
+<div class="highlight"><pre><span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">matplotlib.pyplt</span> <span class="kn">import</span> <span class="o">*</span>
+</pre></div>
+
+
+<p>Loading the map into Python is
+achieved via the usual GDAL incantation and I've also written a little convenience function which maps latitude and
+longitudes into pixel co-ordinates for the map:</p>
+<div class="highlight"><pre><span class="kn">from</span> <span class="nn">osgeo</span> <span class="kn">import</span> <span class="n">gdal</span><span class="p">,</span> <span class="n">osr</span>
+<span class="n">map_ds</span> <span class="o">=</span> <span class="n">gdal</span><span class="o">.</span><span class="n">Open</span><span class="p">(</span><span class="s">&#39;world-map-gall.tiff&#39;</span><span class="p">)</span>
+<span class="n">map_image</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">map_ds</span><span class="o">.</span><span class="n">ReadAsArray</span><span class="p">(),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">0</span><span class="p">))</span>
+<span class="n">ox</span><span class="p">,</span> <span class="n">xs</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">oy</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">ys</span> <span class="o">=</span> <span class="n">map_ds</span><span class="o">.</span><span class="n">GetGeoTransform</span><span class="p">()</span>
+<span class="n">map_extent</span> <span class="o">=</span> <span class="p">(</span> <span class="n">ox</span><span class="p">,</span> <span class="n">ox</span> <span class="o">+</span> <span class="n">xs</span> <span class="o">*</span> <span class="n">map_ds</span><span class="o">.</span><span class="n">RasterXSize</span><span class="p">,</span> <span class="n">oy</span> <span class="o">+</span> <span class="n">ys</span> <span class="o">*</span> <span class="n">map_ds</span><span class="o">.</span><span class="n">RasterYSize</span><span class="p">,</span> <span class="n">oy</span> <span class="p">)</span>
+
+<span class="n">map_proj</span> <span class="o">=</span> <span class="n">osr</span><span class="o">.</span><span class="n">SpatialReference</span><span class="p">()</span>
+<span class="n">map_proj</span><span class="o">.</span><span class="n">ImportFromProj4</span><span class="p">(</span>
+    <span class="s">&#39;+proj=cea +lon_0=0 +lat_ts=45 +x_0=0 +y_0=0 +ellps=WGS84 +units=m +no_defs&#39;</span>
+<span class="p">)</span>
+
+<span class="n">wgs84_proj</span> <span class="o">=</span> <span class="n">osr</span><span class="o">.</span><span class="n">SpatialReference</span><span class="p">()</span>
+<span class="n">wgs84_proj</span><span class="o">.</span><span class="n">ImportFromEPSG</span><span class="p">(</span><span class="mi">4326</span><span class="p">)</span>
+
+<span class="n">wgs84_to_map_trans</span> <span class="o">=</span> <span class="n">osr</span><span class="o">.</span><span class="n">CoordinateTransformation</span><span class="p">(</span><span class="n">wgs84_proj</span><span class="p">,</span> <span class="n">map_proj</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">coord_to_pixel</span><span class="p">(</span><span class="n">coords</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Transform a sequence of co-ordinates in latitude, longitude</span>
+<span class="sd">    pairs into map pixel co-ordinates.&quot;&quot;&quot;</span>
+
+    <span class="c"># Transfrom from lat, lngs -&gt; lng, lats</span>
+    <span class="n">latlngs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">coords</span><span class="p">)</span>
+    <span class="n">lnglats</span> <span class="o">=</span> <span class="n">latlngs</span><span class="p">[:,(</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">)]</span>
+
+    <span class="c"># Transform from lng, lats -&gt; map projection</span>
+    <span class="n">map_coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">wgs84_to_map_trans</span><span class="o">.</span><span class="n">TransformPoints</span><span class="p">(</span><span class="n">lnglats</span><span class="p">))</span>
+
+    <span class="c"># Transform from map projection -&gt; pixel coord</span>
+    <span class="n">map_coords</span><span class="p">[:,</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">map_coords</span><span class="p">[:,</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">ox</span><span class="p">)</span> <span class="o">/</span> <span class="n">xs</span>
+    <span class="n">map_coords</span><span class="p">[:,</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">map_coords</span><span class="p">[:,</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">oy</span><span class="p">)</span> <span class="o">/</span> <span class="n">ys</span>
+
+    <span class="k">return</span> <span class="n">map_coords</span><span class="p">[:,:</span><span class="mi">2</span><span class="p">]</span>
+</pre></div>
+
+
+<p>A heat map is a record, per pixel, of how many 'things' are within that pixel. In our application, this will be the
+number of tweets. The process of dividing a possible range of values up into individual areas and then counting the
+number of times something is present in that area is exactly what one does when plotting a histogram. The ever-wonderful
+NumPy library has a function which nearly does exactly what we want: <code>np.histogram2d</code>:</p>
+<div class="highlight"><pre><span class="k">def</span> <span class="nf">coord_histogram</span><span class="p">(</span><span class="n">coords</span><span class="p">,</span> <span class="n">down_scale</span> <span class="o">=</span> <span class="mi">2</span><span class="p">):</span>
+    <span class="n">pixel_locs</span> <span class="o">=</span> <span class="n">coord_to_pixel</span><span class="p">(</span><span class="n">coords</span><span class="p">)</span>
+    <span class="n">histogram</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">histogram2d</span><span class="p">(</span><span class="n">pixel_locs</span><span class="p">[:,</span><span class="mi">1</span><span class="p">],</span> <span class="n">pixel_locs</span><span class="p">[:,</span><span class="mi">0</span><span class="p">],</span>
+        <span class="n">bins</span><span class="o">=</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">map_image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">/</span><span class="n">down_scale</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">map_image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">/</span><span class="n">down_scale</span><span class="p">)],</span>
+        <span class="nb">range</span><span class="o">=</span><span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="n">map_image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">map_image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]]])</span>
+    <span class="k">return</span> <span class="n">histogram</span>
+</pre></div>
+
+
+<p>There are a couple of interesting things here. Firstly we add a <code>down_scale</code> parameter which divides the pixel
+co-ordinates on the map for each tweet by some number. This is because our heat map should be at a lower resolution than
+our map since we only have a few tweets available. The second thing is that we explicitly specify the number of bins and
+the range of values to match our map image. If we didn't do this, the function would try to guess appropriate values
+which may not be correct. Let's calculate a histogram for Android and iOS:</p>
+<div class="highlight"><pre><span class="n">android</span> <span class="o">=</span> <span class="n">coord_histogram</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">stream</span><span class="o">.</span><span class="n">coords</span><span class="p">[</span><span class="s">&#39;android&#39;</span><span class="p">])</span>
+<span class="n">ios</span> <span class="o">=</span> <span class="n">coord_histogram</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">stream</span><span class="o">.</span><span class="n">coords</span><span class="p">[</span><span class="s">&#39;iOS&#39;</span><span class="p">])</span>
+</pre></div>
+
+
+<p>We can plot the histogram directly via <code>imshow</code>. The <code>spectral</code> colour map is quite nice and, to my mind, reminiscent of
+weather maps showing rainfall intensity which seems appropriate:</p>
+<div class="highlight"><pre><span class="n">imshow</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">ios</span><span class="p">),</span> <span class="n">cmap</span><span class="o">=</span><span class="n">cm</span><span class="o">.</span><span class="n">spectral</span><span class="p">)</span>
+</pre></div>
+
+
+<p><img alt="The raw tweet histogram" src="http://rjw57.github.io/blog/static/images/geolocating-twython/raw-histogram.png" /></p>
+<p>We use <code>np.sqrt</code> to "squash" the range of values so that very large tweet counts do not swamp the smaller ones. Feel
+free to experiment with removing the square root and see what the effect is.</p>
+<p>This isn't bad but it's a little bit "pointalist". Let's blur it with a Gaussian blur. We do this by convolving the
+image with a <em>kernel</em>. Luckily the <code>scipy</code> library comes with a handy one-dimensional Gaussian function:</p>
+<div class="highlight"><pre><span class="kn">from</span> <span class="nn">scipy.stats</span> <span class="kn">import</span> <span class="n">norm</span>
+<span class="n">kern_row</span> <span class="o">=</span> <span class="n">norm</span><span class="o">.</span><span class="n">pdf</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="o">-</span><span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">15</span><span class="p">))</span>
+<span class="n">kern_row</span> <span class="o">/=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">kern_row</span><span class="p">)</span>
+<span class="n">plot</span><span class="p">(</span><span class="n">kern_row</span><span class="p">)</span>
+</pre></div>
+
+
+<p><img alt="A 1-d Gaussian" src="http://rjw57.github.io/blog/static/images/geolocating-twython/1d-gaussian.png" /></p>
+<p>And, since a 2-d Gaussian is separable, making the 2-d version is just a case of taking the outer product:</p>
+<div class="highlight"><pre><span class="n">kernel</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">outer</span><span class="p">(</span><span class="n">kern_row</span><span class="p">,</span> <span class="n">kern_row</span><span class="p">)</span>
+<span class="n">imshow</span><span class="p">(</span><span class="n">kernel</span><span class="p">,</span> <span class="n">interpolation</span><span class="o">=</span><span class="s">&#39;nearest&#39;</span><span class="p">)</span>
+</pre></div>
+
+
+<p><img alt="A 2-d Gaussian" src="http://rjw57.github.io/blog/static/images/geolocating-twython/2d-gaussian.png" /></p>
+<p>Blurring the heat map is then pretty easy:</p>
+<div class="highlight"><pre><span class="kn">from</span> <span class="nn">scipy.signal</span> <span class="kn">import</span> <span class="n">convolve2d</span>
+<span class="n">imshow</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">convolve2d</span><span class="p">(</span><span class="n">android</span><span class="p">,</span> <span class="n">kernel</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s">&#39;same&#39;</span><span class="p">)),</span> <span class="n">cmap</span><span class="o">=</span><span class="n">cm</span><span class="o">.</span><span class="n">spectral</span><span class="p">)</span>
+<span class="n">axis</span><span class="p">(</span><span class="s">&#39;off&#39;</span><span class="p">)</span>
+</pre></div>
+
+
+<p><img alt="A blurred heat map" src="http://rjw57.github.io/blog/static/images/geolocating-twython/blur-heat-map.png" /></p>
+<p>Putting it all together, we can overlay the heat map atop the base map in two lines:</p>
+<div class="highlight"><pre><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span><span class="mi">9</span><span class="p">))</span>
+<span class="n">imshow</span><span class="p">(</span><span class="n">map_image</span><span class="p">,</span> <span class="n">extent</span><span class="o">=</span><span class="n">map_extent</span><span class="p">)</span>
+<span class="n">imshow</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">convolve2d</span><span class="p">(</span><span class="n">android</span><span class="p">,</span> <span class="n">kernel</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s">&#39;same&#39;</span><span class="p">)),</span> <span class="n">extent</span><span class="o">=</span><span class="n">map_extent</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="n">cm</span><span class="o">.</span><span class="n">spectral</span><span class="p">)</span>
+<span class="n">axis</span><span class="p">(</span><span class="s">&#39;off&#39;</span><span class="p">)</span>
+<span class="n">title</span><span class="p">(</span><span class="s">&#39;Android usage as measured by Twitter ({0:,} tweets)&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">android</span><span class="o">.</span><span class="n">sum</span><span class="p">())))</span>
+<span class="n">tight_layout</span><span class="p">()</span>
+<span class="n">savefig</span><span class="p">(</span><span class="s">&#39;android-usage.png&#39;</span><span class="p">)</span>
+
+<span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span><span class="mi">9</span><span class="p">))</span>
+<span class="n">imshow</span><span class="p">(</span><span class="n">map_image</span><span class="p">,</span> <span class="n">extent</span><span class="o">=</span><span class="n">map_extent</span><span class="p">)</span>
+<span class="n">imshow</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">convolve2d</span><span class="p">(</span><span class="n">ios</span><span class="p">,</span> <span class="n">kernel</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s">&#39;same&#39;</span><span class="p">)),</span> <span class="n">extent</span><span class="o">=</span><span class="n">map_extent</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="n">cm</span><span class="o">.</span><span class="n">spectral</span><span class="p">)</span>
+<span class="n">axis</span><span class="p">(</span><span class="s">&#39;off&#39;</span><span class="p">)</span>
+<span class="n">title</span><span class="p">(</span><span class="s">&#39;iOS usage as measured by Twitter ({0:,} tweets)&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">ios</span><span class="o">.</span><span class="n">sum</span><span class="p">())))</span>
+<span class="n">tight_layout</span><span class="p">()</span>
+<span class="n">savefig</span><span class="p">(</span><span class="s">&#39;ios-usage.png&#39;</span><span class="p">)</span>
+</pre></div>
+
+
+<p><img alt="A heat map of iOS devices" src="http://rjw57.github.io/blog/static/images/geolocating-twython/ios.png" />
+<img alt="A heat map of Android devices" src="http://rjw57.github.io/blog/static/images/geolocating-twython/android.png" /></p>
+<p>Now, bear in mind that these results were generated during the UK's lunch time and so there'll be a bias toward the UK
+and Western Europe. That being said quite a few things are obvious:</p>
+<ul>
+<li>The UK, Northern France and the low countries love iOS.</li>
+<li>Both Paris and London are clear hot spots.</li>
+<li>Moscow is clearly visible in the iOS map, but not Android.</li>
+<li>Spain loves Android.</li>
+<li>Everyone in Holywood has an iPhone.</li>
+<li>The usage of Android is more uniform with population in the US whereas iPhones are disproportionately used by people
+  on the East and West coast population centres.</li>
+<li>Indonesia loves Android but is less embracing of iOS.</li>
+<li>Brazil looks to be equally favourable towards iOS and Android but Argentina loves the robot.</li>
+</ul>
+<h2>Finding preferences</h2>
+<p>It would be interesting to plot some sort of 'preference' map showing which regions liked one device over another. Since
+we have a heat map for each device, the difference in heat maps should reveal areas of the world which favour one device
+over another. Matplotlib lets us call colourmap functions directly to get a coloured image out and below we make use of
+this to directly composite a heat map over the base map image. It also shows some tricks with colour bars:</p>
+<div class="highlight"><pre><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span><span class="mi">6</span><span class="p">))</span>
+
+<span class="c"># Compute a preference matrix varying from -1 == iOS to +1 == Android</span>
+<span class="n">A</span> <span class="o">=</span> <span class="n">convolve2d</span><span class="p">(</span><span class="n">android</span><span class="o">/</span><span class="n">android</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">-</span> <span class="n">ios</span><span class="o">/</span><span class="n">ios</span><span class="o">.</span><span class="n">sum</span><span class="p">(),</span> <span class="n">kernel</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s">&#39;same&#39;</span><span class="p">)</span>
+<span class="n">A</span> <span class="o">/=</span> <span class="nb">max</span><span class="p">(</span><span class="n">A</span><span class="o">.</span><span class="n">max</span><span class="p">(),</span> <span class="o">-</span><span class="n">A</span><span class="o">.</span><span class="n">min</span><span class="p">())</span>
+
+<span class="c"># Squash the *magnitude* of A by taking a square root</span>
+<span class="n">A</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">A</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">A</span><span class="p">))</span>
+
+<span class="c"># Show the base map</span>
+<span class="n">gca</span><span class="p">()</span><span class="o">.</span><span class="n">set_axis_bgcolor</span><span class="p">(</span><span class="s">&#39;black&#39;</span><span class="p">)</span>
+<span class="n">imshow</span><span class="p">(</span><span class="n">map_image</span><span class="p">,</span> <span class="n">extent</span><span class="o">=</span><span class="n">map_extent</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
+
+<span class="c"># Compute the coloured preference image and set alpha value based on preference</span>
+<span class="n">pref_cmap</span> <span class="o">=</span> <span class="n">cm</span><span class="o">.</span><span class="n">RdYlBu</span>
+<span class="n">pref_im</span> <span class="o">=</span> <span class="n">pref_cmap</span><span class="p">(</span><span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">A</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+<span class="n">pref_im</span><span class="p">[:,:,</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">A</span><span class="p">)</span> <span class="o">*</span> <span class="mi">10</span><span class="p">)</span>
+
+<span class="c"># Draw preference image</span>
+<span class="n">imshow</span><span class="p">(</span><span class="n">pref_im</span><span class="p">,</span> <span class="n">extent</span><span class="o">=</span><span class="n">map_extent</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="n">pref_cmap</span><span class="p">,</span> <span class="n">clim</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">))</span>
+
+<span class="c"># Draw a colour bar</span>
+<span class="n">cb</span> <span class="o">=</span> <span class="n">colorbar</span><span class="p">()</span>
+<span class="n">cb</span><span class="o">.</span><span class="n">set_ticks</span><span class="p">((</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.5</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+<span class="n">cb</span><span class="o">.</span><span class="n">set_ticklabels</span><span class="p">((</span><span class="s">&#39;Strong iOS&#39;</span><span class="p">,</span> <span class="s">&#39;Weak iOS&#39;</span><span class="p">,</span> <span class="s">&#39;No preference&#39;</span><span class="p">,</span> <span class="s">&#39;Weak Android&#39;</span><span class="p">,</span> <span class="s">&#39;Strong Android&#39;</span><span class="p">))</span>
+
+<span class="c"># Set up plot axes, title and layout</span>
+<span class="n">gca</span><span class="p">()</span><span class="o">.</span><span class="n">get_xaxis</span><span class="p">()</span><span class="o">.</span><span class="n">set_visible</span><span class="p">(</span><span class="bp">False</span><span class="p">)</span>
+<span class="n">gca</span><span class="p">()</span><span class="o">.</span><span class="n">get_yaxis</span><span class="p">()</span><span class="o">.</span><span class="n">set_visible</span><span class="p">(</span><span class="bp">False</span><span class="p">)</span>
+<span class="n">title</span><span class="p">(</span><span class="s">&#39;Geographic preferences for Android vs. iOS&#39;</span><span class="p">)</span>
+<span class="n">tight_layout</span><span class="p">()</span>
+
+<span class="n">savefig</span><span class="p">(</span><span class="s">&#39;preferences.png&#39;</span><span class="p">)</span>
+</pre></div>
+
+
+<p>The figure generated by this code is at the top of this post. Do we believe it? Well, the source is at least
+uninterested in whether iOS or Android is preferred in any one region but bear in mind that this result could well be
+biased by at least two effects:</p>
+<ul>
+<li>Different devices' twitter clients may be more or less keen to report which device they're on.</li>
+<li>iOS and Android users may differ in how much they want to geo-tag their tweets.</li>
+</ul>
+<p>That being said, the results are quite pleasing.</p>
+<h2>Resources</h2>
+<ul>
+<li><a href="http://nbviewer.ipython.org/5858476">An IPython notebook</a> and corresponding <a href="https://gist.github.com/rjw57/5858476">GitHub gist</a> which has all the code in this plot.</li>
+<li>The <a href="https://twython.readthedocs.org/en/latest/">Twython documentation</a></li>
+<li>The <a href="https://dev.twitter.com/docs">Twitter developer documentation</a></li>
+</ul></div>
+    <footer>
+      <p class="meta">
+  <span class="byline author vcard">
+    Posted by <span class="fn">Rich Wareham</span>
+  </span>
+  <time datetime="2013-06-24T00:00:00" pubdate>Mon 24 June 2013</time>    <span class="categories">
+        <a class="category" href="http://rjw57.github.io/blog/tag/python.html">Python</a>
+        <a class="category" href="http://rjw57.github.io/blog/tag/friday-project.html">Friday project</a>
+        <a class="category" href="http://rjw57.github.io/blog/tag/gis.html">GIS</a>
+        <a class="category" href="http://rjw57.github.io/blog/tag/matplotlib.html">matplotlib</a>
+        <a class="category" href="http://rjw57.github.io/blog/tag/twitter.html">Twitter</a>
+        <a class="category" href="http://rjw57.github.io/blog/tag/twython.html">Twython</a>
+        <a class="category" href="http://rjw57.github.io/blog/tag/ios.html">iOS</a>
+        <a class="category" href="http://rjw57.github.io/blog/tag/android.html">Android</a>
+      </span>
+  </p>      <div class="sharing">
+    <a href="http://twitter.com/share" class="twitter-share-button" data-url="http://rjw57.github.io/blog/2013/06/24/geolocating_tweets_with_twython/" data-via="richwareham" data-counturl="http://rjw57.github.io/blog/2013/06/24/geolocating_tweets_with_twython/" >Tweet</a>
+      <div class="g-plusone" data-size="medium"></div>
+    </div>    </footer>
+  </article>
+
+    <section>
+    <h1>Comments</h1>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript></div>
+  </section>
+  </div>
+      <aside class="sidebar">
+  <section>
+    <h1>Recent Posts</h1>
+    <ul id="recent_posts">
+            <li class="post">
+          <a href="http://rjw57.github.io/blog/2013/06/19/real-time-traffic-data/">Processing the UK's real-time traffic data with Python</a>
+      </li>
+            <li class="post">
+          <a href="http://rjw57.github.io/blog/2013/06/14/extracting-the-gps-traces-from-horizons-secret-life-of-the-cat/">Extracting the GPS traces from Horizon's Secret Life of the Cat</a>
+      </li>
+          </ul>
+  </section>
+    <section>
+      
+    <h1>Categories</h1>
+    <ul id="recent_posts">
+              <li><a href="http://rjw57.github.io/blog/category/gis.html">GIS</a></li>
+          </ul>
+  </section>
+   
+
+  <section>
+  <h1>Tags</h1>
+      <a href="http://rjw57.github.io/blog/tag/web.html">web</a>,      <a href="http://rjw57.github.io/blog/tag/datagovuk.html">data.gov.uk</a>,      <a href="http://rjw57.github.io/blog/tag/friday-project.html">Friday project</a>,      <a href="http://rjw57.github.io/blog/tag/python.html">Python</a>,      <a href="http://rjw57.github.io/blog/tag/matplotlib.html">matplotlib</a>,      <a href="http://rjw57.github.io/blog/tag/data-munging.html">data munging</a>,      <a href="http://rjw57.github.io/blog/tag/gis.html">GIS</a>,      <a href="http://rjw57.github.io/blog/tag/hacking.html">hacking</a>    </section>
+
+  
+                    
+  <section>
+    <h1>GitHub Repos</h1>
+    <ul id="gh_repos">
+      <li class="loading">Status updating...</li>
+    </ul>
+          <a href="https://github.com/rjw57">@rjw57</a> on GitHub
+        <script type="text/javascript">
+      $.domReady(function(){
+          if (!window.jXHR){
+              var jxhr = document.createElement('script');
+              jxhr.type = 'text/javascript';
+              jxhr.src = 'http://rjw57.github.io/blog/theme/js/jXHR.js';
+              var s = document.getElementsByTagName('script')[0];
+              s.parentNode.insertBefore(jxhr, s);
+          }
+
+          github.showRepos({
+              user: 'rjw57',
+              count: 3,
+              skip_forks: true,
+              target: '#gh_repos'
+          });
+      });
+    </script>
+    <script src="http://rjw57.github.io/blog/theme/js/github.js" type="text/javascript"> </script>
+  </section>
+  
+    <section>
+        <a href="http://twitter.com/richwareham" class="twitter-follow-button" data-show-count="true">Follow @richwareham</a>
+  </section>
+  <section class="googleplus">
+  <h1>
+    <a href="https://plus.google.com/114005052144439249039?rel=author">
+      <img src="http://www.google.com/images/icons/ui/gprofile_button-32.png" width="32" height="32">
+      Google+
+    </a>
+  </h1>
+</section>
+</aside>    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2013 - Rich Wareham -
+  <span class="credit">Powered by <a href="http://getpelican.com">Pelican</a></span>
+</p></footer>
+      <script type="text/javascript">
+	    var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+	    document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+    </script>
+    <script type="text/javascript">
+	    try {
+	        var pageTracker = _gat._getTracker("UA-41877401-1");
+	    pageTracker._trackPageview();
+	    } catch(err) {}
+	</script>
+	<script type="text/javascript">
+	  var disqus_shortname = 'rjw57-blog';
+	  (function() {
+	    var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+	    dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+	    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+	   })();
+	</script>
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = 'http://platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+  <script type="text/javascript">
+    (function() {
+      var script = document.createElement('script'); script.type = 'text/javascript'; script.async = true;
+      script.src = 'https://apis.google.com/js/plusone.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(script, s);
+    })();
+  </script>
+</body>
+</html>
