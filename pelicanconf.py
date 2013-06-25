@@ -66,7 +66,7 @@ EXTRA_HEADER = '''
   styles: {
   ".MathJax .mo, .MathJax .mi": {color: "black ! important"}}
   },
-  tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']],processEscapes: true}
+  tex2jax: {inlineMath: [['$','$'], ['\\\\(','\\\\)']],processEscapes: true}
   });
 </script>
 
