@@ -2,7 +2,6 @@ Title: iOS versus Android: plotting tweet location heat maps with Twython
 slug: geolocating_tweets_with_twython
 Date: 2013-06-24
 Tags: Python, Friday project, GIS, matplotlib, Twitter, Twython, iOS, Android
-status: draft
 
 ![Geographic preferences for mobile devices](|filename|/images/geolocating-twython/preferences.png)
 
