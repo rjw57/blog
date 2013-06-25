@@ -163,7 +163,7 @@ the user is aware of us and that they've allowed us to do the things we're going
 
 
 <p>Congratulations! We're now fully authenticated with Twitter. Let's prove this by dumping a <a href="http://json.org/">JSON</a> representation of the
-latest tweet by the Internet's darling [Stephen Fry] [https://twitter.com/stephenfry]:</p>
+latest tweet by the Internet's darling <a href="https://twitter.com/stephenfry">Stephen Fry</a>:</p>
 <div class="highlight"><pre><span class="kn">import</span> <span class="nn">json</span>
 <span class="k">print</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">twitter</span><span class="o">.</span><span class="n">get_user_timeline</span><span class="p">(</span><span class="n">screen_name</span><span class="o">=</span><span class="s">&#39;stephenfry&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">],</span> <span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">))</span>
 </pre></div>
