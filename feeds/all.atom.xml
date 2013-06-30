@@ -933,6 +933,9 @@ vector of delays in minutes for each link and also an array of flags indicating 
 &lt;a href="http://www.bbc.co.uk/news/science-environment-22567526"&gt;interactive map&lt;/a&gt; on
 the BBC website. A colleague at work expressed interest in getting the GPS
 trace data. The result is &lt;a href="https://github.com/rjw57/secret-life-of-the-cat"&gt;a GitHub repository&lt;/a&gt; with some files in.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Update:&lt;/strong&gt; As someone who is presumably involved in the original site
+&lt;a href="https://github.com/rjw57/secret-life-of-the-cat/issues/1"&gt;put it on GitHub&lt;/a&gt;: one could always just ask for the data
+instead of hacking it out. But where is the fun in that?&lt;/p&gt;
 &lt;p&gt;Unfortunately the &lt;a href="http://www.rvc.ac.uk/SML/People/awilson/BBC-Horizon-the-secret-life-of-the-cat.cfm"&gt;research project&lt;/a&gt;
 at the Royal Vetinary College does not make the GPS traces available on it's
 website. This repository contains my efforts to re-engineer the GPS traces from
