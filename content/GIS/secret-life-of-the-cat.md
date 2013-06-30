@@ -9,6 +9,10 @@ The BBC's Horizon programme recently had a special entitled [The Secret Life of 
 the BBC website. A colleague at work expressed interest in getting the GPS
 trace data. The result is [a GitHub repository](https://github.com/rjw57/secret-life-of-the-cat) with some files in.
 
+**Update:** As someone who is presumably involved in the original site
+[put it on GitHub](https://github.com/rjw57/secret-life-of-the-cat/issues/1): one could always just ask for the data
+instead of hacking it out. But where is the fun in that?
+
 Unfortunately the [research project](http://www.rvc.ac.uk/SML/People/awilson/BBC-Horizon-the-secret-life-of-the-cat.cfm)
 at the Royal Vetinary College does not make the GPS traces available on it's
 website. This repository contains my efforts to re-engineer the GPS traces from
