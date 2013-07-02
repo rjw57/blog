@@ -13,6 +13,11 @@ trace data. The result is [a GitHub repository](https://github.com/rjw57/secret-
 [put it on GitHub](https://github.com/rjw57/secret-life-of-the-cat/issues/1): one could always just ask for the data
 instead of hacking it out. But where is the fun in that?
 
+**Update 2:** And there's another [mashup](http://maps.robertomurray.co.uk/secret-life-of-the-cat) that 
+[Robert Murray] [rm] made with the same data.
+
+[rm]: https://plus.google.com/110615100250851207372/posts
+
 Unfortunately the [research project](http://www.rvc.ac.uk/SML/People/awilson/BBC-Horizon-the-secret-life-of-the-cat.cfm)
 at the Royal Vetinary College does not make the GPS traces available on it's
 website. This repository contains my efforts to re-engineer the GPS traces from
