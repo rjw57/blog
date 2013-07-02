@@ -936,6 +936,8 @@ trace data. The result is &lt;a href="https://github.com/rjw57/secret-life-of-th
 &lt;p&gt;&lt;strong&gt;Update:&lt;/strong&gt; As someone who is presumably involved in the original site
 &lt;a href="https://github.com/rjw57/secret-life-of-the-cat/issues/1"&gt;put it on GitHub&lt;/a&gt;: one could always just ask for the data
 instead of hacking it out. But where is the fun in that?&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Update 2:&lt;/strong&gt; And there's another &lt;a href="http://maps.robertomurray.co.uk/secret-life-of-the-cat"&gt;mashup&lt;/a&gt; that 
+&lt;a href="https://plus.google.com/110615100250851207372/posts"&gt;Robert Murray&lt;/a&gt; made with the same data.&lt;/p&gt;
 &lt;p&gt;Unfortunately the &lt;a href="http://www.rvc.ac.uk/SML/People/awilson/BBC-Horizon-the-secret-life-of-the-cat.cfm"&gt;research project&lt;/a&gt;
 at the Royal Vetinary College does not make the GPS traces available on it's
 website. This repository contains my efforts to re-engineer the GPS traces from
