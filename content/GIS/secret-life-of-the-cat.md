@@ -14,7 +14,7 @@ trace data. The result is [a GitHub repository](https://github.com/rjw57/secret-
 instead of hacking it out. But where is the fun in that?
 
 **Update 2:** And there's another [mashup](http://maps.robertomurray.co.uk/secret-life-of-the-cat) that 
-[Roberto Murray] [rm] made with the same data.
+[Robert Murray] [rm] made with the same data.
 
 [rm]: https://plus.google.com/110615100250851207372/posts
 
