@@ -3,9 +3,26 @@ slug: perspective_correct_screen_images_with_webgl
 Date: 2013-08-26
 status: draft
 
-sggdsds
-sdgsd
-ffdds
+![A screenshot of the final product](|filename|/images/screen-images-webgl/leader.png)
+
+*In this post: fake is better than real; a brave new graphical world; projective transformations; CORS issues; bending
+WebGL to your will.*
+
+I was recently tagged in a [Google+ post](https://plus.google.com/108243663090085262773/posts/hwPw8oEKBbb) asking for
+help on using Web technologies to generate slick images of mobile apps overlaid onto pictures of real devices. The idea
+being that shiny pictures make people buy things. In that post I developed a little hack which abused the HTML5 canvas
+element to do perspective-correct image warping. In this post I'm going to show you how to do it 'properly'. That is
+without having to sacrifice correctness. In order to do this we're going to use WebGL but we're not doing 3D graphics.
+This post is all about emulating the 'perspective' tool in Photoshop and is all about 2D graphics.
+
+Without any further ado, here is a JSFiddle which encapsulates the techniques in this post. We'll be talking about all
+the checkboxes later on but, for the moment, play with moving the red dots around and checking/un-checking the boxes to
+see the effect. The JSFiddle requires WebGL and if your browser doesn't support WebGL, I've included a screenshot at the
+start of this post. (Anisotropic filtering is a feature which only some browsers support. If your browser doesn't
+support it, the checkbox is disabled but the rest of the demo should work.)
+
+<iframe width="100%" height="650" src="http://jsfiddle.net/rjw57/A6Pgy/embedded/result,js,html,css/" allowfullscreen="allowfullscreen"
+frameborder="0"></iframe>
 
 ```javascript
 
