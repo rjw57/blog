@@ -24,6 +24,82 @@ support it, the checkbox is disabled but the rest of the demo should work.)
 <iframe width="100%" height="650" src="http://jsfiddle.net/rjw57/A6Pgy/embedded/result,js,html,css/" allowfullscreen="allowfullscreen"
 frameborder="0"></iframe>
 
+$$
+\begin{bmatrix}
+XW \\\\ YW \\\\ W
+\end{bmatrix}
+=
+\begin{bmatrix}
+a & d & g \\\\
+b & e & h \\\\
+c & f & 1
+\end{bmatrix}
+\begin{bmatrix}
+x \\\\ y \\\\ 1
+\end{bmatrix}
+$$
+
+Firstly, we note that we have an explicit relation for $W$: $W = cx + fy + 1$. We can multiply that out to give a
+relation for $X$ and $Y$:
+
+$$
+XW = cxX + fyX + X = ax + dy + g \\\\
+YW = cxY + fyY + Y = bx + ey + h.
+$$
+
+We can re-arrange these to give two equations of similar form:
+
+$$
+xa + 0b - xXc + yd + 0e - yXf + g + 0h = X \\\\
+0a + xb - xYc + 0d + ye - yYf + 0g + h = Y
+$$
+
+or, in matrix form:
+
+$$
+\begin{bmatrix}
+x & 0 & -xX & y & 0 & -yX & 1 & 0 \\\\
+0 & x & -xY & 0 & y & -yY & 0 & 1
+\end{bmatrix}
+\begin{bmatrix}
+a\\\\b\\\\c\\\\d\\\\e\\\\f\\\\g\\\\h
+\end{bmatrix}
+=
+\begin{bmatrix}
+X\\\\Y
+\end{bmatrix}.
+$$
+
+If we consider four source points $(x_1, y_1), \cdots, (x_4, y_4)$ which map to corresponding destination points $(X_1,
+Y_1), \cdots, (X_4, Y_4)$ then we can stack the equations together:
+
+$$
+\begin{bmatrix}
+x_1 & 0 & -x_1X_1 & y_1 & 0 & -y_1X_1 & 1 & 0 \\\\
+0 & x_1 & -x_1Y_1 & 0 & y_1 & -y_1Y_1 & 0 & 1 \\\\
+x_2 & 0 & -x_2X_2 & y_2 & 0 & -y_2X_2 & 1 & 0 \\\\
+0 & x_2 & -x_2Y_2 & 0 & y_2 & -y_2Y_2 & 0 & 1 \\\\
+x_3 & 0 & -x_3X_3 & y_3 & 0 & -y_3X_3 & 1 & 0 \\\\
+0 & x_3 & -x_3Y_3 & 0 & y_3 & -y_3Y_3 & 0 & 1 \\\\
+x_4 & 0 & -x_4X_4 & y_4 & 0 & -y_4X_4 & 1 & 0 \\\\
+0 & x_4 & -x_4Y_4 & 0 & y_4 & -y_4Y_4 & 0 & 1 \\\\
+\end{bmatrix}
+\begin{bmatrix}
+a\\\\b\\\\c\\\\d\\\\e\\\\f\\\\g\\\\h
+\end{bmatrix}
+=
+\begin{bmatrix}
+X_1\\\\Y_1\\\\
+X_2\\\\Y_2\\\\
+X_3\\\\Y_3\\\\
+X_4\\\\Y_4
+\end{bmatrix}
+$$
+
+Stacking the four points together like this leads to the matrix on the left being $8 \times 8$ and, for the
+moment assuming it to be full rank, we can solve the matrix equation to get our vector of transform parameters by
+simply inverting the $8 \times 8$ matrix.
+
 ```javascript
 
 // The control points which represent the top-left, top-right and bottom
