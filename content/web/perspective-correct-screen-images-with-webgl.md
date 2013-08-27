@@ -1,5 +1,5 @@
-Title: Perspective correct phone screen images with WebGL
-slug: perspective_correct_screen_images_with_webgl
+Title: Rendering product screen images with WebGL
+slug: screen_images_with_webgl
 Date: 2013-08-27
 status: draft
 
