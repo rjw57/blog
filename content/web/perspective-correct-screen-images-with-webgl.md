@@ -817,3 +817,64 @@ void redrawImg() {
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 }
 ```
+
+And we're done! This code is pretty much what is running in the JSFiddle at the top of this post if you uncheck all of
+the check boxes and it looks like this:
+
+<center>![The first WebGL output](|filename|/images/screen-images-webgl/webgl-1.png)</center>
+
+## Turning the quality knob to 11
+
+The output is somewhat disappointing. OK, we've done all this work to essentially replicate the CSS *matrix3d* function
+in WebGL but the result looks no better. The advantage that WebGL brings is that we can use the full power of the GPU to
+improve the result with a relatively minor set of tweaks.
+
+### Bilinear filtering
+
+The first thing we can do is fairly easy; instead of just choosing the nearest pixel, we can linearly blend between the
+pixel values depending on how close the asked for point is. This just involves changing the two ``gl.texParameteri``
+calls:
+
+```javascript
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+```
+
+The difference is shown in the, possibly extreme, example below. Firstly we have the original ``gl.NEAREST`` output and
+then we have the output with ``gl.LINEAR``:
+
+<center>
+![Output with gl.NEAREST](|filename|/images/screen-images-webgl/webgl-nearest.png)
+![Output with gl.LINEAR](|filename|/images/screen-images-webgl/webgl-linear.png)
+</center>
+
+As you can see, the main difference is that the 'blockiness' of the original pixels disappears. This is of only slight
+value though since the whole point of having a high-resolution screenshot is that the pixels should be small enough that
+it doesn't matter. We're going to have to do better.
+
+### MIP mapping
+
+The jaggies in the output are due to an effect called 'aliasing'. When the screen image is shrunk down to the phone
+image, one pixel of the output might actually cover multiple pixels from the original image. The ``texture2d()``
+function chooses one of those pixels or, if linear filtering is switched on, some combination of nearby pixels. The idea
+of a [mipmap](http://en.wikipedia.org/wiki/Mip_map) is to 'pre-average' pixels together. The GPU then estimates what
+region of the screen image corresponds to the asked-for pixel and then fetches that from the appropriate level of the
+mipmap.
+
+Again, this takes longer to explain than do. All that is required is to modify one of the ``gl.texParameteri`` calls and
+add a call to tell WebGL to generate a mipmap for the texture:
+
+```javascript
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+gl.generateMipmap(gl.TEXTURE_2D);
+```
+
+The result is shown below. Look particularly at the fine blue lines at the bottom of the screen. Note how they're less
+jagged than before.
+
+<center>![Output with mipmaps](|filename|/images/screen-images-webgl/webgl-mip.png)</center>
+
+### Anisotropic filtering
+
+TODO.
