@@ -840,13 +840,13 @@ gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 ```
 
-The difference is shown in the, possibly extreme, example below. Firstly we have the original ``gl.NEAREST`` output and
-then we have the output with ``gl.LINEAR``:
+The difference is shown in the, possibly extreme, example below. Firstly we have the original ``gl.NEAREST`` output:
 
-<center>
-![Output with gl.NEAREST](|filename|/images/screen-images-webgl/webgl-nearest.png)
-![Output with gl.LINEAR](|filename|/images/screen-images-webgl/webgl-linear.png)
-</center>
+<center>![Output with gl.NEAREST](|filename|/images/screen-images-webgl/webgl-nearest.png)</center>
+
+Then we have the output with ``gl.LINEAR``:
+
+<center>![Output with gl.LINEAR](|filename|/images/screen-images-webgl/webgl-linear.png)</center>
 
 As you can see, the main difference is that the 'blockiness' of the original pixels disappears. This is of only slight
 value though since the whole point of having a high-resolution screenshot is that the pixels should be small enough that
@@ -874,6 +874,10 @@ The result is shown below. Look particularly at the fine blue lines at the botto
 jagged than before.
 
 <center>![Output with mipmaps](|filename|/images/screen-images-webgl/webgl-mip.png)</center>
+
+If we zoom in as before, the smoothness is clear to behold:
+
+<center>![Output with mipmaps (zoomed)](|filename|/images/screen-images-webgl/webgl-mip-zoom.png)</center>
 
 ### Anisotropic filtering
 
