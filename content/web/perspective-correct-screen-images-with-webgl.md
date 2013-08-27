@@ -53,7 +53,7 @@ $$
 X = ax + dy + g, \quad \text{and,} \quad Y = bx + ey + h.
 $$
 
-This transform will be applied to all points, including those in images draw via the
+This transform will be applied to all points, including those in images drawn via the
 [drawImage method](http://www.w3schools.com/tags/canvas_drawimage.asp). Given three image points, $(x_1, y_1), \cdots, (x_3, y_3)$,
 the *source* points, and corresponding points in the output image, the *destination* points, we can stack all three
 equations together into a single matrix equation:
@@ -401,7 +401,7 @@ x \\\\ y \\\\ z \\\\ 1
 $$
 
 This leaves only one row of the matrix to set: the row which determines $ZW$. Since we don't really care what the depth
-of our output is, we'll set it to zero:
+of our output is, we'll just leave it alone:
 
 $$
 \begin{bmatrix}
@@ -411,7 +411,7 @@ XW \\\\ YW \\\\ ZW \\\\ W
 \begin{bmatrix}
 a & d & 0 & g \\\\
 b & e & 0 & h \\\\
-0 & 0 & 0 & 0 \\\\
+0 & 0 & 1 & 01 \\\\
 c & f & 0 & 1
 \end{bmatrix}
 \begin{bmatrix}
@@ -419,7 +419,7 @@ x \\\\ y \\\\ z \\\\ 1
 \end{bmatrix}.
 $$
 
-We could've set it to 1 or any other value we chose, but setting it to zero is really easy. Now that we know how to work
+We could've set it to any other value we chose, but leaving it alone is prudent. Now that we know how to work
 out what parameters to pass to the *matrix3d* function, writing the ``drawImg()`` function is straightforward:
 
 ```javascript
@@ -460,10 +460,11 @@ wiggle a control point before the CSS change takes effect. Any suggestions as to
 <iframe width="100%" height="650" src="http://jsfiddle.net/rjw57/kbQPW/embedded/result,js,html,css" allowfullscreen="allowfullscreen"
 frameborder="0"></iframe>
 
-And the result is not at all bad. If your browser is highly GPU-accelerated the edges of the screen image will even be
-anti-aliased. Using CSS is not an ideal solution since a) one of the design goals was to have a 'Save as PNG' button but
-trying to screenshot the browser via Javascript is nigh-on impossible, and b) there are still some jaggies in the
-actual screen image itself. The jaggies are particularly noticeable on the blue lines in this zoomed in image:
+And the result is not at all bad. (Although, on Firefox, it is very jittery.) If your browser is highly GPU-accelerated
+the edges of the screen image will even be anti-aliased. Using CSS is not an ideal solution since a) one of the design
+goals was to have a 'Save as PNG' button but trying to screenshot the browser via Javascript is nigh-on impossible, and
+b) there are still some jaggies in the actual screen image itself. The jaggies are particularly noticeable on the blue
+lines in this zoomed in image:
 
 <center>![Using CSS gets us most of the way there](|filename|/images/screen-images-webgl/css-perspective.png)</center>
 
@@ -471,173 +472,229 @@ We've gone as far as the browser can insulate us from the dark world of GPUs. It
 
 ## A brave new world: WebGL
 
+At some level WebGL is just another canvas API. Instead of getting a ``'2d'`` context from the canvas and using that for
+all drawing operations, one gets a ``'webgl'`` context:
+
 ```javascript
-
-// The control points which represent the top-left, top-right and bottom
-// right of the image. These will be wires, via d3.js, to the handles
-// in the svg element.
-var controlPoints = [
-    { x: 100, y: 100 },
-    { x: 300, y: 100 },
-    { x: 100, y: 400 },
-    { x: 300, y: 400 }
-];
-
-// UI for controlling quality
-var anisotropicFilteringElement = document.getElementById('anisotropicFiltering');
-var mipMappingFilteringElement = document.getElementById('mipMapping');
-var linearFilteringElement = document.getElementById('linearFiltering');
-
-// Options for controlling quality.
-var qualityOptions = { };
-syncQualityOptions();
-
-// UI for saving image
-document.getElementById('saveResult').onclick = saveResult;
-
-// Reflect any changes in quality options
-anisotropicFilteringElement.onchange = syncQualityOptions;
-mipMappingFilteringElement.onchange = syncQualityOptions;
-linearFilteringElement.onchange = syncQualityOptions;
-
-// Wire in the control handles to dragging. Call 'redrawImg' when they change.
-var controlHandlesElement = document.getElementById('controlHandles');
-setupControlHandles(controlHandlesElement, redrawImg);
-
-// Wire up the control handle toggle
-var drawControlPointsElement = document.getElementById('drawControlPoints');
-drawControlPointsElement.onchange = function() {
-    controlHandlesElement.style.visibility =
-        !!(drawControlPointsElement.checked) ? 'visible' : 'hidden';
-}
-
 // Create a WegGL context from the canvas which will have the screen image
 // rendered to it. NB: preserveDrawingBuffer is needed for rendering the
 // image for download. (Otherwise, the canvas appears to have nothing in
 // it.)
 var screenCanvasElement = document.getElementById('screenCanvas');
 var glOpts = { antialias: true, depth: false, preserveDrawingBuffer: true };
-var gl =
-    screenCanvasElement.getContext('webgl', glOpts) ||
-    screenCanvasElement.getContext('experimental-webgl', glOpts);
+var gl = screenCanvasElement.getContext('webgl', glOpts) ||
+         screenCanvasElement.getContext('experimental-webgl', glOpts);
 if(!gl) {
     addError("Your browser doesn't seem to support WebGL.");
 }
+```
 
-// See if we have the anisotropic filtering extension by trying to get
-// if from the WebGL implementation.
-var anisoExt =
-    gl.getExtension('EXT_texture_filter_anisotropic') ||
-    gl.getExtension('MOZ_EXT_texture_filter_anisotropic') ||
-    gl.getExtension('WEBKIT_EXT_texture_filter_anisotropic');
+(I've assumed the existence of a function, ``addError()``, which will report an error to the user in a slightly prettier
+way than using ``alert()``.)
 
-// If we failed, tell the user that their image will look like poo on a
-// stick.
-if(!anisoExt) {
-    anisotropicFilteringElement.checked = false;
-    anisotropicFilteringElement.disabled = true;
-    addError("Your browser doesn't support anisotropic filtering. "+
-             "Ordinary MIP mapping will be used.");
+The only wrinkle is that, depending on your browser, WebGL may or may not be marked as experimental. We have to try
+both and see what comes out. The ``antialias`` and ``depth`` options are hints to the browser. In our application we
+want the output to be as smooth as possible and we won't be needing a depth buffer since we're not doing any 3D stuff.
+As noted in the comment the ``preserveDrawingBuffer`` is needed to support the 'Save as PNG' functionality.
+
+### Vertex and fragment shaders
+
+Unlike the 2D canvas version where we do most of the work in the ``redrawImg()`` function, we do most of the work in the
+WebGL world in the initial setup of the context. This is intentional; WebGL wants to make the per-frame draw call as
+much like 'do it again but over here' as possible. As in the canvas example we draw something at $(x, y)$ in WebGL and
+this results in something happening at pixel $(X, Y)$. The WebGL pipeline looks like this:
+
+* We send WebGL a set of points, or *vertices*, which we are going to use to draw the image.
+* WebGL runs each vertex through a little program called a *vertex shader* to convert the points into canvas pixel
+  co-ordinates. The vertex shader may also attach a little bit of data to each output vertex. This is termed a *varying*
+  value
+* WebGL fills in triangles between each vertex. For each pixel in the triangle, WebGL calls another little program to
+  determine the pixel's colour. In WebGL a pixel is called a *fragment* and hence this program is called the *fragment
+  shader*. The fragment shader can also read the varying value but that value is interpolated based on the pixel's
+  position within the triangle.
+
+Varying values perhaps need more explanation. There is an
+[example](http://www.opengl.org/sdk/docs/tutorials/ClockworkCoders/varying.php) in the OpenGL SDK which illustrates
+their effect. In this example, in the vertex shader, each vertex outputs a different colour, red, green or blue, as a
+varying. The fragment shader then just uses the colour it gets as its output. As you can see, the varying values get
+interpolated between vertices:
+
+<center>![Varying values in GLSL](|filename|/images/screen-images-webgl/varying.gif)</center>
+
+We're going to abuse the pipeline to draw our screen image. We're going to send the source co-ordinates to WebGL and use
+the vertex shader to do the matrix multiply for us. We'll record the original source co-ordinate as a varying value
+which will then be picked up by the fragment shader. This value will be used as a co-ordinate to get the right pixel
+value from the screen image.
+
+All of that takes longer to explain in English than it does in code. Here's the source for our vertex shader:
+
+```glsl
+// The source co-ordinate.
+attribute vec2 aVertCoord;
+
+// The transformation matrix.
+uniform mat4 uTransformMatrix;
+
+// A varying value holding the original source co-ordinate.
+varying vec2 vTextureCoord;
+
+void main(void) {
+    // Record the original source co-ordinate for the fragment shader.
+    vTextureCoord = aVertCoord;
+
+    // Work out the position in canvas co-ordinates of this vertex.
+    gl_Position = uTransformMatrix * vec4(aVertCoord, 0.0, 1.0);
+}
+```
+
+And here is the code for the fragment shader:
+
+```glsl
+// A hint to WebGL that we only need medium accuracy in the result; we're
+// not doing weather simulation here!
+precision mediump float;
+
+// The varying value from the vertex shader.
+varying vec2 vTextureCoord;
+
+// A sampler lets us get pixel values from an image.
+uniform sampler2D uSampler;
+
+void main(void)  {
+    // The output colour is the value of the screen image at vTextureCoord.
+    gl_FragColor = texture2D(uSampler, vTextureCoord);
+}
+```
+
+If you count up all the non-comment, non-variable declaration, lines there are three lines in total that do something:
+
+1. remember the original source co-ordinate;
+2. work out the destination co-ordinate by multiplying by the transform matrix; and
+3. get the fragment's colour from the screen image.
+
+In our WebGL context setup we need to a) compile these shaders and b) link them together into a single *shader program*.
+A shader program contains the vertex and fragment shaders used to create a particular effect. We can switch between
+shader programs within one draw call to get different effects although in our application we only need one shader
+program. Compiling and linking the shaders into one program is easy, if tedious:
+
+```javascript
+// These variables are set to the source to our shaders.
+var vertShaderSource, fragShaderSource;
+
+// Create the vertex shader and compile it.
+var vertexShader = gl.createShader(gl.VERTEX_SHADER);
+gl.shaderSource(vertexShader, vertShaderSource);
+gl.compileShader(vertexShader);
+
+// Check for errors compiling the vertex shader.
+if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS)) {
+    addError('Failed to compile vertex shader:' +
+             gl.getShaderInfoLog(vertexShader));
 }
 
-// Setup the GL context compiling the shader programs and returning the
-// attribute and uniform locations.
-var glResources = setupGlContext();
+// Create the fragment shader and compile it.
+var fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
+gl.shaderSource(fragmentShader, fragShaderSource);
+gl.compileShader(fragmentShader);
 
-// This object will store the width and height of the screen image in
-// normalised texture co-ordinates in its 'w' and 'h' fields.
-var screenTextureSize;
-
-// The only readon this element exists in the DOM is too (potentially)
-// cache the image for us before this script is run and to specity
-// the screen image URL in a more obvious place.
-var imgElement = document.getElementById('screen');
-imgElement.style.display = 'none';
-
-// Create an element to hold the screen image and arracnge for loadScreenTexture
-// to be called when the image is loaded.
-var screenImgElement = new Image();
-screenImgElement.crossOrigin = '';
-screenImgElement.onload = loadScreenTexture;
-screenImgElement.src = imgElement.src;
-
-function setupGlContext() {
-    // Store return values here
-    var rv = {};
-    
-    // Vertex shader:
-    var vertShaderSource = [
-        'attribute vec2 aVertCoord;',
-        'uniform mat4 uTransformMatrix;',
-        'varying vec2 vTextureCoord;',
-        'void main(void) {',
-        '    vTextureCoord = aVertCoord;',
-        '    gl_Position = uTransformMatrix * vec4(aVertCoord, 0.0, 1.0);',
-        '}'
-    ].join('\n');
-
-    var vertexShader = gl.createShader(gl.VERTEX_SHADER);
-    gl.shaderSource(vertexShader, vertShaderSource);
-    gl.compileShader(vertexShader);
-
-    if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS)) {
-        addError('Failed to compile vertex shader:' +
-              gl.getShaderInfoLog(vertexShader));
-    }
-       
-    // Fragment shader:
-    var fragShaderSource = [
-        'precision mediump float;',
-        'varying vec2 vTextureCoord;',
-        'uniform sampler2D uSampler;',
-        'void main(void)  {',
-        '    gl_FragColor = texture2D(uSampler, vTextureCoord);',
-        '}'
-    ].join('\n');
-
-    var fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
-    gl.shaderSource(fragmentShader, fragShaderSource);
-    gl.compileShader(fragmentShader);
-
-    if (!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS)) {
-        addError('Failed to compile fragment shader:' +
-              gl.getShaderInfoLog(fragmentShader));
-    }
-    
-    // Compile the program
-    rv.shaderProgram = gl.createProgram();
-    gl.attachShader(rv.shaderProgram, vertexShader);
-    gl.attachShader(rv.shaderProgram, fragmentShader);
-    gl.linkProgram(rv.shaderProgram);
-
-    if (!gl.getProgramParameter(rv.shaderProgram, gl.LINK_STATUS)) {
-        addError('Shader linking failed.');
-    }
-        
-    // Create a buffer to hold the vertices
-    rv.vertexBuffer = gl.createBuffer();
-
-    // Find and set up the uniforms and attributes        
-    gl.useProgram(rv.shaderProgram);
-    rv.vertAttrib = gl.getAttribLocation(rv.shaderProgram, 'aVertCoord');
-    gl.enableVertexAttribArray(rv.vertAttrib);
-        
-    rv.transMatUniform = gl.getUniformLocation(rv.shaderProgram, 'uTransformMatrix');
-    rv.samplerUniform = gl.getUniformLocation(rv.shaderProgram, 'uSampler');
-        
-    // Create a texture to use for the screen image
-    rv.screenTexture = gl.createTexture();
-    
-    return rv;
+// Check for errors compiling the fragment shader.
+if (!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS)) {
+    addError('Failed to compile fragment shader:' +
+             gl.getShaderInfoLog(fragmentShader));
 }
 
+// 'Link' the shaders into a single program.
+var shaderProgram = gl.createProgram();
+gl.attachShader(shaderProgram, vertexShader);
+gl.attachShader(shaderProgram, fragmentShader);
+gl.linkProgram(shaderProgram);
+
+// Check for any errors linking the program.
+if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+    addError('Shader linking failed.');
+}
+```
+
+There are three 'inputs' to the shaders; an *attribute* which is the vertex position itself and two *uniforms* giving
+the transform matrix and the screen image. An *attribute* is something which changes with each vertex and a *uniform* is
+something which stays the same in one frame.
+
+When we come to actually draw the screen in ``redrawImg()`` we will need to set these inputs. WebGL provides a way to
+get the 'location' of these attributes for later use:
+
+```javascript
+// Make our shader program the current program in use.
+gl.useProgram(shaderProgram);
+
+// Find the uniforms and attributes        
+var vertAttrib = gl.getAttribLocation(shaderProgram, 'aVertCoord');
+var transMatUniform = gl.getUniformLocation(shaderProgram, 'uTransformMatrix');
+var samplerUniform = gl.getUniformLocation(shaderProgram, 'uSampler');
+```
+### Vertex buffers
+
+The 2D canvas API is, in WebGL-speak, an immediate mode API. That is to say that when we say 'create this path' we do so
+by giving it the points. WebGL is more indirect than that. In WebGL we set up a 'buffer' object to hold the co-ordinates
+of the points and then say to WebGL 'draw some triangles joining up the points in that buffer'. The idea behind this
+being that if you are re-drawing a complex model every frame you don't want to be specifying the co-ordinates of all the
+vertices of that model each and every frame. You want to say just once 'hey, WebGL, here's the data for a bad guy' and
+then each frame you can say 'draw a bad guy using the data I gave you'. For our application this isn't very helpful but
+we must work within the world we're given.
+
+Complex though that might sound, actually doing it is fairly simple. We need to create, once, a vertex buffer to hold
+the source co-ordinates of the quadrilateral, or *quad*, we want to draw and add the vertices to it. The ``srcPoints``
+array hold the *x*- and *y*-co-ordinates of a quadrilateral which covers the screen. We'll cover what those co-ordinates
+actually are later.
+
+```javascript
+// Create a buffer to hold the vertices
+var vertexBuffer = gl.createBuffer();
+
+// Fill the vertex buffer with the source points
+var vertices = [];
+for(var i=0; i<srcPoints.length; i++) {
+    vertices.push(srcPoints[i].x);
+    vertices.push(srcPoints[i].y);
+}
+    
+gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);a
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+```
+
+The ``gl.bindBuffer()`` dance is typical of WebGL APIs. One manipulates an object, in this case ``vertexBuffer``, by
+'binding' it to a *target*, in this case ``gl.ARRAY_BUFFER``, and then performing operations on that target as in the
+call to ``gl.bufferData``. This sort of 'indirect' object-orientation is a hang over from the C-focused days of OpenGL.
+The ``gl.STATIC_DRAW`` is a hint to WebGL that we'll be drawing using these co-ordinates often but updating them rarely.
+In fact, in our application, we never touch them again.
+
+### The screen image texture
+
+In WebGL an image whose pixel values can be queried is called a *texture*. Creating a texture is done once in the
+initial setup and is a single call:
+
+```javascript
+var screenTexture = gl.createTexture();
+```
+
+Setting up that texture to contain the right pixels is a bit annoying. The main annoyance is that WebGL really, really
+wants your textures to have widths and heights which are powers of 2. That is your textures should be 1, 2, 4, 8, 16,
+&hellip; wide and tall. If your screen image satisfies that then great. Unfortunately not many real-world images do. We
+wire up the following ``loadScreenTexture()`` function to the screen image element via the ``onload`` event. This
+function's aim is to a) copy the image to a canvas element whose width and height are a power of two, b) initialise the
+``screenTexture`` with the image's content and c) initialise the srcPoints array.
+
+Let's cover parts a) and b) first:
+
+```javascript
 function loadScreenTexture() {
-    if(!gl || !glResources) { return; }
-    
+    // This is the <img> element whose src attribute is the screen image.
     var image = screenImgElement;
+
+    // Extract the width and height of the image.
     var extent = { w: image.naturalWidth, h: image.naturalHeight };
-    
-    gl.bindTexture(gl.TEXTURE_2D, glResources.screenTexture);
+        
+    // Bind the screen texture to the current 2D texture target.
+    gl.bindTexture(gl.TEXTURE_2D, screenTexture);
     
     // Scale up the texture to the next highest power of two dimensions.
     var canvas = document.createElement("canvas");
@@ -647,76 +704,75 @@ function loadScreenTexture() {
     var ctx = canvas.getContext("2d");
     ctx.drawImage(image, 0, 0, image.width, image.height);
     
+    // Copy the image from the canvas into the texture.
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
-    
-    if(qualityOptions.linearFiltering) {
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER,
-                         qualityOptions.mipMapping
-                             ? gl.LINEAR_MIPMAP_LINEAR
-                             : gl.LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    } else {
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, 
-                         qualityOptions.mipMapping
-                             ? gl.NEAREST_MIPMAP_NEAREST
-                             : gl.LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-    }
-    
-    if(anisoExt) {
-        // turn the anisotropy knob all the way to 11 (or down to 1 if it is
-        // switched off).
-        var maxAniso = qualityOptions.anisotropicFiltering ?
-            gl.getParameter(anisoExt.MAX_TEXTURE_MAX_ANISOTROPY_EXT) : 1;
-        gl.texParameterf(gl.TEXTURE_2D, anisoExt.TEXTURE_MAX_ANISOTROPY_EXT, maxAniso);
-    }
-    
-    if(qualityOptions.mipMapping) {
-        gl.generateMipmap(gl.TEXTURE_2D);
-    }
-    
-    gl.bindTexture(gl.TEXTURE_2D, null);
-    
-    // Record normalised height and width.
-    screenTextureSize = {
-        w: extent.w / canvas.width,
-        h: extent.h / canvas.height
-    };
-    
-    // Redraw the image
-    redrawImg();
+
+    // Specify that when we use the texture2d() function in the fragment shader,
+    // we want to use the pixel whose co-ordinate is the nearest for the asked for
+    // co-ordinate.
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+
+    // Initialise srcPoints (discussed below)
+    // ...
 }
+```
 
-function isPowerOfTwo(x) { return (x & (x - 1)) == 0; }
- 
-function nextHighestPowerOfTwo(x) {
-    --x;
-    for (var i = 1; i < 32; i <<= 1) {
-        x = x | x >> i;
-    }
-    return x + 1;
-}
+Again we see the 'bind' idiom used; the screen texture is bound to the ``gl.TEXTURE_2D`` target and that target is
+modified via WebGL calls. The ``gl.texImage2D`` call is where the texture actually gets it's content and the
+``gl.texParameteri`` calls specify how co-ordinates passed to the ``texture2d()`` get turned into pixel values. In the
+case above we specify that we look for the nearest pixel and use that value.
 
-function redrawImg() {
-    //var drawSkeleton = !!(drawSkeletonElement.checked);
-    //svgElement.style.visibility = drawSkeleton ? 'visible' : 'hidden';
+Part c) is a little more involved. The ``texture2d()`` function takes what are called 'normalised' texture co-ordinates.
+These are co-ordinates where the top-left of the image has co-ordinate (0,0) and the bottom-right has co-ordinate (1,1)
+*irrespective of the number of pixels in the texture*. What this means is that we have to do a little bit of arithmetic
+to work out how much of the texture our image covers in the second half of ``loadScreenTexture()``:
 
-    if(!gl || !glResources || !screenTextureSize) { return; }
-    
-    var w = screenTextureSize.w, h = screenTextureSize.h;
+```javascript
+// Record normalised height and width.
+var w = extent.w / canvas.width, h = extent.h / canvas.height;
+
+// Initialise the global srcPoints array.
+srcPoints = [
+    { x: 0, y: 0 }, // top-left
+    { x: w, y: 0 }, // top-right
+    { x: 0, y: h }, // bottom-left
+    { x: w, y: h }  // bottom-right
+];
+```
+
+Note that one can't initialise the vertex buffer until the ``srcPoints`` array is initialised. I'd recommend looking at
+the JSFiddle source to see the exact ordering that I used.
+
+### Drawing the screen
+
+And so we move to the ``redrawImg()`` function itself. We're going to draw the screen as two triangles which share a
+common diagonal. WebGL has a drawing primitive called a 'triangle strip' where points are joined up with triangles
+according to this diagram from Wikipedia:
+
+<center>![A triangle strip](|filename|/images/screen-images-webgl/Triangle_Strip.png)</center>
+
+Now we see why we had to specify the source points in such a strange order. To draw the quadrilateral ABDC we need to
+send the points in the order A, B, C, D; we need to join up the corners to draw an 'N' on the screen.
+
+As a final wrinkle, the final canvas co-ordinates in WebGL are not in pixels. The output from the vertex shader is
+assumed to be in normalised 'window co-ordinates'. Instead of the canvas having a top-left at (0, 0) and a bottom right
+at (width, height), the WebGL canvas has a *bottom*-left at (-1, -1) and a *top*-right at (1, 1). We need to do a little
+fiddling with the ``controlPoints`` to take account of this.
+
+Once we have the vertices into the vertex buffer and the texture all set up, the actual drawing of the 'triangle strip'
+is just one call. We can now write the ``redrawImg()`` function:
+
+```javascript
+void redrawImg() {
+    // Get the width and height of the canvas element we're drawing to. This is the
+    // viewport width and viewport height.
     var vpW = screenCanvasElement.width;
     var vpH = screenCanvasElement.height;
 
-    var srcPoints = [
-        { x: 0, y: 0 }, // top-left
-        { x: w, y: 0 }, // top-right
-        { x: 0, y: h }, // bottom-left
-        { x: w, y: h }  // bottom-right
-    ];
-    
-    // Find where the control points are in 'window coordinates'. I.e.
-    // where thecanvas covers [-1,1] x [-1,1]. Note that we have to flip
-    // the y-coord.
+    // Find where the control points are in normalised 'window coordinates'. That is
+    // a co-ordinate system where the x co-ordinate and y co-ordinate both vary from
+    // -1 to 1. Note: we have to flip the y-coord.
     var dstPoints = [];
     for(var i=0; i<controlPoints.length; i++) {
         dstPoints.push({
@@ -724,191 +780,40 @@ function redrawImg() {
             y: -(2 * controlPoints[i].y / vpH) + 1
         });
     }
-    
-    // Get the transform
-    var T = transformationFromQuadCorners(srcPoints, dstPoints);
-    
-    // set background to full transparency
-    gl.clearColor(0,0,0,0);
+
+    // Set background colour to full transparency and clear the canvas.
+    gl.clearColor(0, 0, 0, 0);
     gl.viewport(0, 0, vpW, vpH);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    
-    // setup the vertex buffer with the source points
-    var vertices = [];
-    for(var i=0; i<srcPoints.length; i++) {
-        vertices.push(srcPoints[i].x);
-        vertices.push(srcPoints[i].y);
-    }
-        
-    gl.bindBuffer(gl.ARRAY_BUFFER, glResources.vertexBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.DYNAMIC_DRAW);
-    
-    gl.useProgram(glResources.shaderProgram);
 
-    // draw the triangles
-    gl.vertexAttribPointer(glResources.vertAttrib, 2, gl.FLOAT, false, 0, 0);
+    // Bind our vertex buffer.
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+
+    // Specify that we'll use it for our 'aVertCoord' attribute. The vertex
+    // buffer is laid out as 2 values per co-ordinate, separated by 0 values
+    // starting 0 values from the start of the buffer.
+    gl.enableVertexAttribArray(vertAttrib);
+    gl.vertexAttribPointer(vertAttrib, 2, gl.FLOAT, false, 0, 0);
+
+    // Set the transformation matrix.
     gl.uniformMatrix4fv(
-        glResources.transMatUniform,
+        transMatUniform,
         false, [
-            // This is 'T' unravelled in column-major order.
-            T[0][0], T[1][0], T[2][0], T[3][0],
-            T[0][1], T[1][1], T[2][1], T[3][1],
-            T[0][2], T[1][2], T[2][2], T[3][2],
-            T[0][3], T[1][3], T[2][3], T[3][3]
+            v[0], v[1],    0, v[2],
+            v[3], v[4],    0, v[5],
+               0,    0,    0,    0,
+            v[6], v[7],    0,    1
         ]);
         
+    // Set the screen texture. WebGL can have multiple textures active at once.
+    // Here we activate texture '0', set it to the screen texture and then
+    // associate the texture sampler uniform with texture '0'.
     gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, glResources.screenTexture);
-    gl.uniform1i(glResources.samplerUniform, 0);
+    gl.bindTexture(gl.TEXTURE_2D, screenTexture);
+    gl.uniform1i(samplerUniform, 0);
 
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);    
+    // Actually draw the screen. Use the 4 vertices starting 0 vertices from
+    // the start of our vertex buffer.
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 }
-
-function transformationFromQuadCorners(before, after)
-{
-    /*
-     Return the 16 element transformation matrix which transforms
-     the points in *before* to corresponding ones in *after*.
-     The points should be specified as
-     [{x:x1,y:y1}, {x:x2,y:y2}, {x:x3,y:y2}, {x:x4,y:y4}].
-    */
-    
-    /* See http://alumni.media.mit.edu/~cwren/interpolator/ */
-
-    var b = numeric.transpose([[
-        after[0].x, after[0].y,
-        after[1].x, after[1].y,
-        after[2].x, after[2].y,
-        after[3].x, after[3].y ]]);
-    
-    var A = [];
-    for(var i=0; i<before.length; i++) {
-        A.push([
-            before[i].x, before[i].y, 1, 0, 0, 0,
-            -after[i].x*before[i].x, -after[i].x*before[i].y ]);
-        A.push([
-            0, 0, 0, before[i].x, before[i].y, 1,
-            -after[i].y*before[i].x, -after[i].y*before[i].y ]);
-    }
-       
-    var v = numeric.transpose(numeric.dot(numeric.inv(A), b))[0];
-    
-    var T = [
-        [v[0], v[1],   0, v[2]],
-        [v[3], v[4],   0, v[5]],
-        [   0,    0,   1,    0],
-        [v[6], v[7],   0,    1]
-    ];
-    
-    return T;
-}
-
-function syncQualityOptions() {
-    qualityOptions.anisotropicFiltering = !!(anisotropicFilteringElement.checked);
-    qualityOptions.mipMapping = !!(mipMappingFilteringElement.checked);
-    qualityOptions.linearFiltering = !!(linearFilteringElement.checked);
-    
-    // re-load the texture if possible
-    loadScreenTexture();
-}
-
-function setupControlHandles(controlHandlesElement, onChangeCallback)
-{
-    // Use d3.js to provide user-draggable control points
-    var rectDragBehav = d3.behavior.drag()
-        .on('drag', function(d,i) {
-                d.x += d3.event.dx; d.y += d3.event.dy;
-                d3.select(this).attr('cx',d.x).attr('cy',d.y);
-                onChangeCallback();
-            });
-    
-    var dragT = d3.select(controlHandlesElement).selectAll('circle')
-            .data(controlPoints)
-        .enter().append('circle')
-            .attr('cx', function(d) { return d.x; })
-            .attr('cy', function(d) { return d.y; })
-            .attr('r', 30)
-            .attr('class', 'control-point')
-            .call(rectDragBehav);
-}
-
-function addError(message)
-{
-    var container = document.getElementById('errors');
-    var errMessage = document.createElement('div');
-    errMessage.textContent = message;
-    errMessage.className = 'errorMessage';
-    container.appendChild(errMessage);
-}
-
-function saveResult() {
-    var resultCanvas = document.createElement('canvas');
-    resultCanvas.width = screenCanvasElement.width;
-    resultCanvas.height = screenCanvasElement.height;
-    var ctx = resultCanvas.getContext('2d');
-       
-    var bgImage = new Image();
-    bgImage.crossOrigin = '';
-    bgImage.onload = function() {
-        ctx.drawImage(bgImage, 0, 0);
-        ctx.drawImage(screenCanvasElement, 0, 0);
-        Canvas2Image.saveAsPNG(resultCanvas);
-    }
-    bgImage.src = document.getElementById('background').src;
-}
-```
-
-```css
-#container {
-    position: relative;
-    width: 500px; height: 507px;
-}
-
-#container * {
-    position: absolute;
-}
-
-.errorMessage {
-    border: 1px solid #dFb5b4;
-    background: #fcf2f2;
-    color: #c7254e;
-    padding: 0.5em;
-    border-radius: 5px;
-}
-
-circle.control-point {
-    fill: red;
-    fill-opacity: 0.25;
-}
-
-circle.control-point:hover {
-    stroke: yellow;
-    stroke-width: 2px;
-}
-```
-
-```html
-<div id="errors">
-    <!-- Any errors will go here wrapped in a div with an 'errorMessage' class. -->
-</div>
-<p>
-    Drag points around to distort image.
-    <input type="checkbox" checked="1" id="drawControlPoints"></input>
-    <label for="drawControlPoints">Draw control points.</label>
-    <input type="checkbox" checked="1" id="anisotropicFiltering"></input>
-    <label for="anisotropicFiltering">Anisotropic filtering.</label>
-    <input type="checkbox" checked="1" id="mipMapping"></input>
-    <label for="mipMapping">MIP mapping.</label>
-    <input type="checkbox" checked="1" id="linearFiltering"></input>
-    <label for="linearFiltering">(Bi-/Tri-)linear filtering.</label>
-    <button id="saveResult">Download as PNG</button>
-</p>
-<div id="container">
-    <!-- If background and/or screen image are not hosted on the
-         same domain as this page, the host must support CORS. -->
-    <img id="background" src="http://i.imgur.com/eFSch02.jpg">
-    <img id="screen" src="http://i.imgur.com/vsZypFu.png">
-    <canvas width="500" height="507" id="screenCanvas"></canvas>
-    <svg width="500" height="507" id="controlHandles"></svg>
-</div>
 ```
