@@ -108,7 +108,7 @@ function transformationFromTriangleCorners(before, after)
     ];
 
     // Compute T matrix using Numeric. If you wanted, you could work out the
-    // inverse of X long-hand but life is too short.
+    // inverse of S long-hand but life is too short.
     T = numeric.dot(D, numeric.inv(S));
 
     // We only want specific elements from T
@@ -294,9 +294,8 @@ X_4\\\\Y_4
 \end{bmatrix}}\_{\vec{u}}.
 $$
 
-Stacking everything together like this leads to $A$ being $8 \times 8$ and, since it is square and we assume it to be
-full rank, we can solve the matrix equation to get our vector of transform parameters, $\vec{v}$, simply by inverting
-$A$:
+Stacking everything together like this leads to $A$ being square and, if we assume it to be full rank, we can solve the
+matrix equation to get our vector of transform parameters, $\vec{v}$, simply by inverting $A$:
 
 $$
 \vec{v} = A^{-1} \vec{u}.
@@ -334,6 +333,143 @@ function transformationFromQuadCorners(before, after)
     return numeric.transpose(numeric.dot(numeric.inv(A), u))[0];
 }
 ```
+
+## A second attempt: CSS
+
+OK, you can relax now. The heavy maths is over for the moment and we can move back into the pragmatic world of web
+programming. We've got a Javascript function which, given four points in the source and destination images, will give us
+the magic eight numbers we need to slot into the transform matrix to get us there. Unfortunately the canvas' transform
+method only takes *six* parameters; it's not general enough for our needs.
+
+Luckily the nice people over at Apple decided that web pages needed more bling and so they implemented a CSS
+[transform property](https://developer.mozilla.org/en-US/docs/Web/CSS/transform-function) which is working its way
+through the standardisation process and is already present, albeit vendor-prefixed, in most modern browsers. Instead of
+drawing our image with the canvas API, we could set the transform property directly on an ``<img>`` element via CSS:
+
+```css
+img#screen {
+    /* Scale the image by 1/2 and offset it by (-100, -50). */
+    transform: matrix(0.5, 0, 0, 0.5, -100, -50);
+}
+```
+
+Surprise, surprise, the six parameters to the *matrix* CSS transform function match those of the canvas transform
+method. As we noted above, these six parameters aren't quite enough for us. Luckily there is a *matrix3d* function which
+takes a whopping 16 values. Surely there's enough room there to slot in our eight values? The 16 values are entries in
+the following transformation matrix which, as before, takes our source image co-ordinates and maps them to the
+destination co-ordinates using the 16 values $\\{ t_1, \cdots, t_{16} \\}$ in the following way:
+
+$$
+\begin{bmatrix}
+XW \\\\ YW \\\\ ZW \\\\ W
+\end{bmatrix}
+=
+\begin{bmatrix}
+t_1 & t_5 & t_9 & t_{13} \\\\
+t_2 & t_6 & t_{10} & t_{14} \\\\
+t_3 & t_7 & t_{11} & t_{15} \\\\
+t_4 & t_8 & t_{12} & t_{16}
+\end{bmatrix}
+\begin{bmatrix}
+x \\\\ y \\\\ z \\\\ 1
+\end{bmatrix}.
+$$
+
+What are these $z$ and $Z$ numbers? Aren't web pages fundamentally 2D affairs? Yes and no. Although they are certainly
+laid out in 2D, each element in a web page has a notional 'depth' or
+[z-index](http://www.w3schools.com/cssref/pr_pos_z-index.asp). Those elements with a greater $z$ index appear 'above'
+elements with a smaller one. It is this $z$ value which is fed into the transform above. Although we're doing a
+perspective-like transform *we are only warping the image in 2D*. We do *not* want to rotate the image in 3D. Remember
+that we are only trying to emulate the perspective warp feature in Photoshop. We're not writing a 3D engine. So we
+don't really care what the final $Z$ value actually is. We can set most of the elements of the matrix by comparing our
+2D transform to the matrix equation and using '0' to ignore the $z$ co-ordinate:
+
+$$
+\begin{bmatrix}
+XW \\\\ YW \\\\ ZW \\\\ W
+\end{bmatrix}
+=
+\begin{bmatrix}
+a & d & 0 & g \\\\
+b & e & 0 & h \\\\
+t_3 & t_7 & t_{11} & t_{15} \\\\
+c & f & 0 & 1
+\end{bmatrix}
+\begin{bmatrix}
+x \\\\ y \\\\ z \\\\ 1
+\end{bmatrix}.
+$$
+
+This leaves only one row of the matrix to set: the row which determines $ZW$. Since we don't really care what the depth
+of our output is, we'll set it to zero:
+
+$$
+\begin{bmatrix}
+XW \\\\ YW \\\\ ZW \\\\ W
+\end{bmatrix}
+=
+\begin{bmatrix}
+a & d & 0 & g \\\\
+b & e & 0 & h \\\\
+0 & 0 & 0 & 0 \\\\
+c & f & 0 & 1
+\end{bmatrix}
+\begin{bmatrix}
+x \\\\ y \\\\ z \\\\ 1
+\end{bmatrix}.
+$$
+
+We could've set it to 1 or any other value we chose, but setting it to zero is really easy. Now that we know how to work
+out what parameters to pass to the *matrix3d* function, writing the ``drawImg()`` function is straightforward:
+
+```javascript
+function redrawImg() {
+    var w = imgElement.naturalWidth, h = imgElement.naturalHeight;
+
+    var srcPoints = [
+        { x: 0, y: 0 },    // top-left
+        { x: w, y: 0 },    // top-right
+        { x: w, y: h },    // bottom-right
+        { x: 0, y: h }     // bottom-left
+    ];
+    
+    // Use the four correspondences to compute the transform parameters.
+    var v = transformationFromQuadCorners(srcPoints, controlPoints);
+    
+    // Construct a matrix3d() call slotting in the transform parameters.
+    var trans = 'matrix3d(' +
+        v[0] + ',' + v[1] + ',0.0,' + v[2] + ',' +
+        v[3] + ',' + v[4] + ',0.0,' + v[5] + ',' +
+        '0.0, 0.0, 0.0, 0.0,' +
+        v[6] + ',' + v[7] + ',0.0, 1.0)';
+ 
+    // Set the <img> element's CSS transform property or the vendor-prefixed equivalent.
+    imgElement.style.webkitTransform = trans;
+    imgElement.style.MozTransform = trans;
+    imgElement.style.msTransform = trans;
+    imgElement.style.OTransform = trans;
+    imgElement.style.transform = trans;
+}
+```
+
+A final little wrinkle is that we need to use the
+[transform-origin CSS property](http://www.w3schools.com/cssref/css3_pr_transform-origin.asp) on the ``<img>`` to make
+sure that $(0,0)$ really *is* the top-left corner.  The result is below. **Note:** for some reason, you may need to
+wiggle a control point before the CSS change takes effect. Any suggestions as to why are most welcome.
+
+<iframe width="100%" height="650" src="http://jsfiddle.net/rjw57/kbQPW/embedded/result,js,html,css" allowfullscreen="allowfullscreen"
+frameborder="0"></iframe>
+
+And the result is not at all bad. If your browser is highly GPU-accelerated the edges of the screen image will even be
+anti-aliased. Using CSS is not an ideal solution since a) one of the design goals was to have a 'Save as PNG' button but
+trying to screenshot the browser via Javascript is nigh-on impossible, and b) there are still some jaggies in the
+actual screen image itself. The jaggies are particularly noticeable on the blue lines in this zoomed in image:
+
+<center>![Using CSS gets us most of the way there](|filename|/images/screen-images-webgl/css-perspective.png)</center>
+
+We've gone as far as the browser can insulate us from the dark world of GPUs. It's time to move to&hellip; WebGL.
+
+## A brave new world: WebGL
 
 ```javascript
 
