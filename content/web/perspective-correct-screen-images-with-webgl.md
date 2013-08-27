@@ -1,6 +1,6 @@
 Title: Perspective correct phone screen images with WebGL
 slug: perspective_correct_screen_images_with_webgl
-Date: 2013-08-26
+Date: 2013-08-27
 status: draft
 
 <center>![A screenshot of the final product](|filename|/images/screen-images-webgl/leader.png)</center>
@@ -880,5 +880,9 @@ If we zoom in as before, the smoothness is clear to behold:
 <center>![Output with mipmaps (zoomed)](|filename|/images/screen-images-webgl/webgl-mip-zoom.png)</center>
 
 ### Anisotropic filtering
+
+<center>![Output without anisotropic filtering](|filename|/images/screen-images-webgl/webgl-no-aniso.png)</center>
+
+<center>![Output with anisotropic filtering](|filename|/images/screen-images-webgl/webgl-aniso.png)</center>
 
 TODO.
