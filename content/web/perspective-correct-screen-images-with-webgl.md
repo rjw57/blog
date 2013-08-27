@@ -3,7 +3,7 @@ slug: perspective_correct_screen_images_with_webgl
 Date: 2013-08-26
 status: draft
 
-![A screenshot of the final product](|filename|/images/screen-images-webgl/leader.png)
+<center>![A screenshot of the final product](|filename|/images/screen-images-webgl/leader.png)</center>
 
 *In this post: fake is better than real; a brave new graphical world; projective transformations; CORS issues; bending
 WebGL to your will.*
@@ -24,6 +24,160 @@ support it, the checkbox is disabled but the rest of the demo should work.)
 <iframe width="100%" height="650" src="http://jsfiddle.net/rjw57/A6Pgy/embedded/result,js,html,css/" allowfullscreen="allowfullscreen"
 frameborder="0"></iframe>
 
+## A first attempt: using the HTML5 canvas API
+
+Let's begin by considering a single point in the input image, $(x, y$), which ends up at $(X, Y)$ on the screen. If
+you've played with the 2D canvas, you'll be familiar with it's
+[transform method](http://www.w3schools.com/tags/canvas_transform.asp). This method takes six parameters which we'll
+call, for the moment, $a$, $b$, $d$, $e$, $g$ and $h$ and sets up a co-ordinate transform on the canvas. Points drawn at
+$(x, y)$ will end up at pixel co-ordinate $(X, Y)$ according to the following relation:
+
+$$
+\begin{bmatrix}
+X \\\\ Y \\\\ 1
+\end{bmatrix}
+=
+\begin{bmatrix}
+a & d & g \\\\
+b & e & h \\\\
+0 & 0 & 1
+\end{bmatrix}
+\begin{bmatrix}
+x \\\\ y \\\\ 1
+\end{bmatrix}.
+$$
+
+To put it another way:
+
+$$
+X = ax + dy + g, \quad \text{and,} \quad Y = bx + ey + h.
+$$
+
+This transform will be applied to all points, including those in images draw via the
+[drawImage method](http://www.w3schools.com/tags/canvas_drawimage.asp). Given three image points, $(x_1, y_1), \cdots, (x_3, y_3)$,
+the *source* points, and corresponding points in the output image, the *destination* points, we can stack all three
+equations together into a single matrix equation:
+
+$$
+\underbrace{\begin{bmatrix}
+X_1 & X_2 & X_3 \\\\ Y_1 & Y_2 & Y_3 \\\\ 1 & 1 & 1
+\end{bmatrix}}\_{D}
+=
+\underbrace{\begin{bmatrix}
+a & d & g \\\\
+b & e & h \\\\
+0 & 0 & 1
+\end{bmatrix}}\_{T}
+\underbrace{\begin{bmatrix}
+x_1 & x_2 & x_3 \\\\ y_1 & y_2 & y_3 \\\\ 1 & 1 & 1
+\end{bmatrix}}\_{S}
+$$
+
+where we have stacked all the destination points into a single matrix, $D$, and all the source points into a single
+matrix, $S$. Assuming $S$ is full-rank, we can recover the parameters we need to feed into the canvas' transform method
+by inverting $S$:
+
+$$
+T = DS^{-1}.
+$$
+
+We can implement this in Javascript using [Numeric.js](http://www.numericjs.com/):
+
+```javascript
+function transformationFromTriangleCorners(before, after)
+{
+    // Return the parameters needed by the transform() 
+    // canvas function which will transform the three points in *before* to the
+    // corresponding ones in *after*. The points should be specified as
+    // [{x:x1,y:y1}, {x:x2,y:y2}, {x:x3,y:y2}].
+
+    var D, S, T;
+
+    // Make S matrix
+    S = [
+        [ before[0].x, before[1].x, before[2].x ],
+        [ before[0].y, before[1].y, before[2].y ],
+        [ 1, 1, 1 ]
+    ];
+
+    // Make D matrix
+    D = [
+        [ after[0].x, after[1].x, after[2].x ],
+        [ after[0].y, after[1].y, after[2].y ],
+        [ 1, 1, 1 ]
+    ];
+
+    // Compute T matrix using Numeric. If you wanted, you could work out the
+    // inverse of X long-hand but life is too short.
+    T = numeric.dot(D, numeric.inv(S));
+
+    // We only want specific elements from T
+    return [T[0][0], T[1][0], T[0][1], T[1][1], T[0][2], T[1][2]];
+}
+```
+
+Notice that we have only needed *three* corresponding points in the source and destination images. (We can only invert a
+matrix if it is a square one.) The JSFiddle below shows the result of using this method and the canvas API's transform
+method. This uses no WebGL, just the basic 2D canvas support that all modern browsers should have.
+
+<iframe width="100%" height="650" src="http://jsfiddle.net/rjw57/unmR6/embedded/result,js,html,css" allowfullscreen="allowfullscreen"
+frameborder="0"></iframe>
+
+The heart of the JSFiddle above is a ``redrawImg()`` function which uses the HTML5 canvas API to draw the screen image:
+
+```javascript
+function redrawImg() {
+    // imgElement is a <img> element containing the screen image.
+    var w = imgElement.naturalWidth, h = imgElement.naturalHeight;
+
+    // The global variable controlPoints specifies the positions in the
+    // output image of the screen corners. This variable specifies the
+    // corners in screen image co-ordinates:
+    var srcPoints = [
+        { x: 0, y: 0 },    // top-left
+        { x: w, y: 0 },    // top-right
+        { x: w, y: h }     // bottom-right
+    ];
+    
+    // Use the three correspondences to compute the transform parameters.
+    var T = transformationFromTriangleCorners(srcPoints, controlPoints);
+    
+    // Get a canvas context and clear any previous image.
+    var ctx = canvasElement.getContext('2d');
+    ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+    
+    // Draw the transformed image.
+    ctx.save();
+    ctx.transform(T[0], T[1], T[2], T[3], T[4], T[5]);
+    ctx.drawImage(imgElement, 0, 0);
+    ctx.restore();
+}
+```
+
+Unfortunately this suffers from some problems. The first problem is that three points are not enough; we can't get the
+screen image to fall exactly on the background phone's screen. Whether the second problem exists for you may depend on
+your browser. On my machine the screen image looks 'jagged' and of poor quality compared to the results one can get from
+Photoshop. This is particularly noticeable around the small lettering at the bottom of the screen and on fine horizontal
+lines. Here's a zoomed in screenshot to show what I mean:
+
+<center>![Using 2D Canvas APIs can lead to artefacts](|filename|/images/screen-images-webgl/affine.png)</center>
+
+A 2D transform like this which is specified by six parameters is called an
+[affine transformation](http://en.wikipedia.org/wiki/Affine_transformation). If you play with the example above you
+should be able to convince yourself that an affine transformation can represent scaling, rotation, shearing and the
+[phantom zone](https://www.youtube.com/watch?v=2u3eQc_rx54#t=65s) but not a
+the perspective-like transformation we want. We're going to need a more general transform.
+
+## Projective transforms
+
+If you look back up the page to our matrix equation relating $(x, y)$ and $(X, Y)$ you might notice that the bottom row
+of the transform matrix was fixed to be $[0, 0, 1]$. It needs to be that so that the last '1' of $[X, Y, 1]$ on the
+left matches the last '1' of $[x, y, 1]$ on the right. To put it another way, the only way to make $1 = cx + fy + 1$
+true for all $x$ and $y$ is for $c = f = 0$.
+
+What if we don't force this last row to have that value? What if the first two elements could change? (We'll talk about
+the third one later.) This means the last element of the left hand side would no longer be 1. Let's call it $W$:
+
 $$
 \begin{bmatrix}
 XW \\\\ YW \\\\ W
@@ -39,22 +193,66 @@ x \\\\ y \\\\ 1
 \end{bmatrix}
 $$
 
-Firstly, we note that we have an explicit relation for $W$: $W = cx + fy + 1$. We can multiply that out to give a
-relation for $X$ and $Y$:
+We've changed from $[X, Y, 1]$ to $[XW, YW, W]$ here so that we can always get back to our original $[X, Y, 1]$ by
+dividing by $W$:
 
 $$
-XW = cxX + fyX + X = ax + dy + g \\\\
-YW = cxY + fyY + Y = bx + ey + h.
+\begin{bmatrix}
+X \\\\ Y \\\\ 1
+\end{bmatrix}
+= \frac{1}{W}
+\begin{bmatrix}
+XW \\\\ YW \\\\ W
+\end{bmatrix}.
+$$
+
+This explains why it doesn't matter if we set the last element of our transform matrix to 1. Let's try setting it to
+some value, $\alpha$, by multiplying the whole transform matrix:
+
+$$
+\begin{bmatrix}
+\alpha XW \\\\ \alpha YW \\\\ \alpha W
+\end{bmatrix}
+=
+\begin{bmatrix}
+\alpha a & \alpha d & \alpha g \\\\
+\alpha b & \alpha e & \alpha h \\\\
+\alpha c & \alpha f & \alpha
+\end{bmatrix}
+\begin{bmatrix}
+x \\\\ y \\\\ 1
+\end{bmatrix}.
+$$
+
+No matter what we set $\alpha$ to, as long as it isn't zero, the effect cancels out when we compute $X$ and $Y$ by
+dividing by $\alpha W$. Since it doesn't matter what $\alpha$ is, we set it to 1 to make things neater.
+
+We have a more general transform matrix now but how do we work out what the values of $a$ to $h$ actually are given some
+source and destination points? Firstly, we note that we have an explicit relation for $W$:
+
+$$
+W = cx + fy + 1.
+$$
+
+We can multiply that out to give a relation for $X$ and $Y$:
+
+$$
+\begin{align}
+XW = cxX + fyX + X &= ax + dy + g \\\\
+YW = cxY + fyY + Y &= bx + ey + h.
+\end{align}
 $$
 
 We can re-arrange these to give two equations of similar form:
 
 $$
-xa + 0b - xXc + yd + 0e - yXf + g + 0h = X \\\\
-0a + xb - xYc + 0d + ye - yYf + 0g + h = Y
+\begin{align}
+xa + 0b - xXc + yd + 0e - yXf + 1g + 0h &= X \\\\
+0a + xb - xYc + 0d + ye - yYf + 0g + 1h &= Y,
+\end{align}
 $$
 
-or, in matrix form:
+or in matrix form:
 
 $$
 \begin{bmatrix}
@@ -71,10 +269,10 @@ X\\\\Y
 $$
 
 If we consider four source points $(x_1, y_1), \cdots, (x_4, y_4)$ which map to corresponding destination points $(X_1,
-Y_1), \cdots, (X_4, Y_4)$ then we can stack the equations together:
+Y_1), \cdots, (X_4, Y_4)$ then we can stack all four pairs of equations together into a single matrix equation:
 
 $$
-\begin{bmatrix}
+\underbrace{\begin{bmatrix}
 x_1 & 0 & -x_1X_1 & y_1 & 0 & -y_1X_1 & 1 & 0 \\\\
 0 & x_1 & -x_1Y_1 & 0 & y_1 & -y_1Y_1 & 0 & 1 \\\\
 x_2 & 0 & -x_2X_2 & y_2 & 0 & -y_2X_2 & 1 & 0 \\\\
@@ -83,22 +281,59 @@ x_3 & 0 & -x_3X_3 & y_3 & 0 & -y_3X_3 & 1 & 0 \\\\
 0 & x_3 & -x_3Y_3 & 0 & y_3 & -y_3Y_3 & 0 & 1 \\\\
 x_4 & 0 & -x_4X_4 & y_4 & 0 & -y_4X_4 & 1 & 0 \\\\
 0 & x_4 & -x_4Y_4 & 0 & y_4 & -y_4Y_4 & 0 & 1 \\\\
-\end{bmatrix}
-\begin{bmatrix}
+\end{bmatrix}}\_{A}
+\underbrace{\begin{bmatrix}
 a\\\\b\\\\c\\\\d\\\\e\\\\f\\\\g\\\\h
-\end{bmatrix}
+\end{bmatrix}}\_{\vec{v}}
 =
-\begin{bmatrix}
+\underbrace{\begin{bmatrix}
 X_1\\\\Y_1\\\\
 X_2\\\\Y_2\\\\
 X_3\\\\Y_3\\\\
 X_4\\\\Y_4
-\end{bmatrix}
+\end{bmatrix}}\_{\vec{u}}.
 $$
 
-Stacking the four points together like this leads to the matrix on the left being $8 \times 8$ and, for the
-moment assuming it to be full rank, we can solve the matrix equation to get our vector of transform parameters by
-simply inverting the $8 \times 8$ matrix.
+Stacking everything together like this leads to $A$ being $8 \times 8$ and, since it is square and we assume it to be
+full rank, we can solve the matrix equation to get our vector of transform parameters, $\vec{v}$, simply by inverting
+$A$:
+
+$$
+\vec{v} = A^{-1} \vec{u}.
+$$
+
+In Javascript, using the [Numeric.js](http://www.numericjs.com/) library, this looks like the following:
+
+```javascript
+function transformationFromQuadCorners(before, after)
+{
+    // Return the 8 elements of the transformation matrix which maps the points
+    // in *before* to corresponding ones in *after*. The points should be
+    // specified as [{x:x1,y:y1}, {x:x2,y:y2}, {x:x3,y:y2}, {x:x4,y:y4}].
+    // 
+    // Note: There are 8 elements because the bottom-right element is assumed to
+    // be '1'.
+ 
+    // Form the column vector of 'after' points.
+    var u = numeric.transpose([[
+        after[0].x, after[0].y, after[1].x, after[1].y,
+        after[2].x, after[2].y, after[3].x, after[3].y ]]);
+    
+    // Form the magic matrix of 'after' and 'before' points.
+    var A = [];
+    for(var i=0; i<before.length; i++) {
+        A.push([
+            before[i].x, 0, -after[i].x*before[i].x,
+            before[i].y, 0, -after[i].x*before[i].y, 1, 0]);
+        A.push([
+            0, before[i].x, -after[i].y*before[i].x,
+            0, before[i].y, -after[i].y*before[i].y, 0, 1]);
+    }
+    
+    // Solve for v and return the elements as a single array
+    return numeric.transpose(numeric.dot(numeric.inv(A), u))[0];
+}
+```
 
 ```javascript
 
